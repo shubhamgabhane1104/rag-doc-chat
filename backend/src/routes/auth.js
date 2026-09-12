@@ -8,10 +8,10 @@ const router = express.Router();
 
 router.post('/signup', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { firstName, lastName, email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({ error: 'First name, last name, email, and password are required' });
     }
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
@@ -26,12 +26,11 @@ router.post('/signup', async (req, res) => {
     const userId = uuidv4();
 
     await pool.query(
-      'INSERT INTO users (id, email, password_hash) VALUES ($1, $2, $3)',
-      [userId, email, passwordHash]
+      'INSERT INTO users (id, first_name, last_name, email, password_hash) VALUES ($1, $2, $3, $4, $5)',
+      [userId, firstName, lastName, email, passwordHash]
     );
 
-    const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.status(201).json({ token, user: { id: userId, email } });
+    res.status(201).json({ message: 'Account created successfully' });
   } catch (err) {
     console.error('Signup error:', err);
     res.status(500).json({ error: 'Something went wrong during signup' });
@@ -59,7 +58,11 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user.id, email: user.email } });
+
+    res.json({
+      token,
+      user: { id: user.id, firstName: user.first_name, lastName: user.last_name, email: user.email },
+    });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Something went wrong during login' });
