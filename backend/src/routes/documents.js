@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const { pool } = require('../db/db');
 const { requireAuth } = require('../middleware/auth');
-const { extractTextByPage } = require('../services/pdfService');
+const { extractTextByPage } = require('../services/documentService');
 const { chunkPages } = require('../services/chunkService');
 const { embedTexts } = require('../services/embeddingService');
 const vectorStore = require('../services/vectorStore');
@@ -21,12 +21,21 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => cb(null, `${uuidv4()}-${file.originalname}`),
 });
 
+const ALLOWED_MIMES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',       // .xlsx
+  'application/vnd.ms-excel',                                                // .xls
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+  'text/plain',                                                              // .txt
+];
+
 const upload = multer({
   storage,
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype !== 'application/pdf') {
-      return cb(new Error('Only PDF files are supported'));
+    if (!ALLOWED_MIMES.includes(file.mimetype)) {
+      return cb(new Error('Unsupported file type. Allowed: PDF, DOCX, XLSX, XLS, PPTX, TXT'));
     }
     cb(null, true);
   },
@@ -40,7 +49,7 @@ async function processDocument(documentId, filePath) {
     if (chunks.length === 0) {
       await pool.query(
         'UPDATE documents SET status = $1, error_message = $2 WHERE id = $3',
-        ['failed', 'No extractable text found (may be a scanned image PDF).', documentId]
+        ['failed', 'No extractable text found in the document.', documentId]
       );
       return;
     }
@@ -118,6 +127,41 @@ router.delete('/:id', requireAuth, async (req, res) => {
   await pool.query('DELETE FROM documents WHERE id = $1', [doc.id]);
 
   res.json({ success: true });
+});
+
+router.get('/:id/content', requireAuth, async (req, res) => {
+  const docResult = await pool.query(
+    'SELECT * FROM documents WHERE id = $1 AND user_id = $2',
+    [req.params.id, req.userId]
+  );
+  const doc = docResult.rows[0];
+
+  if (!doc) return res.status(404).json({ error: 'Document not found' });
+  if (doc.status !== 'ready') {
+    return res.status(400).json({ error: 'Document is not ready yet' });
+  }
+
+  const chunksResult = await pool.query(
+    'SELECT page_number, chunk_text FROM chunks WHERE document_id = $1 ORDER BY chunk_index ASC',
+    [doc.id]
+  );
+
+  // Group chunks by page number
+  const pageMap = {};
+  for (const row of chunksResult.rows) {
+    const pn = row.page_number || 1;
+    if (!pageMap[pn]) pageMap[pn] = [];
+    pageMap[pn].push(row.chunk_text);
+  }
+
+  const pages = Object.entries(pageMap)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([pageNumber, texts]) => ({
+      pageNumber: Number(pageNumber),
+      text: texts.join(' '),
+    }));
+
+  res.json({ filename: doc.filename, pages });
 });
 
 module.exports = router;
