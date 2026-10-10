@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Loader2, FileText, Sun, Moon, Monitor } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, FileText, Sun, Moon, Monitor, GraduationCap } from 'lucide-react';
 import client from '../api/client';
 import { useTheme } from '../context/ThemeContext';
 
@@ -73,22 +73,33 @@ export default function Chat() {
           </div>
         </div>
 
-        {/* Theme Toggle */}
-        <div className="flex items-center bg-slate-100 dark:bg-slate-700 rounded-full p-1 gap-0.5">
-          {themeOptions.map(({ value, icon: Icon, label }) => (
-            <button
-              key={value}
-              onClick={() => setTheme(value)}
-              title={label}
-              className={`p-1.5 rounded-full transition-all ${
-                mode === value
-                  ? 'bg-white dark:bg-slate-500 text-indigo-600 dark:text-white shadow-sm'
-                  : 'text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-white'
-              }`}
-            >
-              <Icon size={14} />
-            </button>
-          ))}
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => navigate(`/quiz/${documentId}`)}
+            className="flex items-center gap-1.5 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:hover:bg-indigo-900 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/80 px-3 py-1.5 rounded-lg transition"
+            title="Take Quiz & Viva Prep"
+          >
+            <GraduationCap size={15} />
+            <span className="hidden sm:inline">Quiz & Viva Prep</span>
+          </button>
+
+          {/* Theme Toggle */}
+          <div className="flex items-center bg-slate-100 dark:bg-slate-700 rounded-full p-1 gap-0.5">
+            {themeOptions.map(({ value, icon: Icon, label }) => (
+              <button
+                key={value}
+                onClick={() => setTheme(value)}
+                title={label}
+                className={`p-1.5 rounded-full transition-all ${
+                  mode === value
+                    ? 'bg-white dark:bg-slate-500 text-indigo-600 dark:text-white shadow-sm'
+                    : 'text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-white'
+                }`}
+              >
+                <Icon size={14} />
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

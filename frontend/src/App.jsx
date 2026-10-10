@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Chat from './pages/Chat';
+import Quiz from './pages/Quiz';
 
 export default function App() {
   return (
@@ -29,6 +30,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Chat />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quiz/:documentId"
+            element={
+              <ProtectedRoute>
+                <Quiz />
               </ProtectedRoute>
             }
           />

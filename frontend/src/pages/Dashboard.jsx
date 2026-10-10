@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, FileText, LogOut, MessageSquare, Trash2, Loader2, CheckCircle2, XCircle, Eye, X, Sun, Moon, Monitor } from 'lucide-react';
+import { Upload, FileText, LogOut, MessageSquare, Trash2, Loader2, CheckCircle2, XCircle, Eye, X, Sun, Moon, Monitor, GraduationCap } from 'lucide-react';
 import client from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -225,16 +225,29 @@ export default function Dashboard() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   {statusBadge(doc.status)}
                   {doc.status === 'ready' && (
-                    <button
-                      onClick={(e) => handlePreview(doc.id, e)}
-                      className="text-slate-400 hover:text-indigo-500 transition p-1"
-                      title="View content"
-                    >
-                      <Eye size={16} />
-                    </button>
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/quiz/${doc.id}`);
+                        }}
+                        className="flex items-center gap-1.5 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/80 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/80 px-2.5 py-1.5 rounded-lg transition"
+                        title="Take Quiz & Viva Prep"
+                      >
+                        <GraduationCap size={14} />
+                        <span className="hidden sm:inline">Quiz & Viva</span>
+                      </button>
+                      <button
+                        onClick={(e) => handlePreview(doc.id, e)}
+                        className="text-slate-400 hover:text-indigo-500 transition p-1"
+                        title="View content"
+                      >
+                        <Eye size={16} />
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={(e) => handleDelete(doc.id, e)}

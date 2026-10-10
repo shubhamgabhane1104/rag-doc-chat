@@ -5,6 +5,7 @@ const { initDb } = require('./src/db/db');
 const authRoutes = require('./src/routes/auth');
 const documentsRoutes = require('./src/routes/documents');
 const chatRoutes = require('./src/routes/chat');
+const quizRoutes = require('./src/routes/quiz');
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.get('/health', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/documents', documentsRoutes);
 app.use('/chats', chatRoutes);
+app.use('/quiz', quizRoutes);
 
 const PORT = process.env.PORT || 5000;
 

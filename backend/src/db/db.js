@@ -64,6 +64,27 @@ async function initDb() {
     );
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS quizzes (
+      id UUID PRIMARY KEY,
+      document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      quiz_type TEXT NOT NULL CHECK (quiz_type IN ('mcq', 'viva')),
+      title TEXT NOT NULL,
+      difficulty TEXT DEFAULT 'medium',
+      questions JSONB NOT NULL,
+      user_answers JSONB,
+      score INTEGER,
+      total_questions INTEGER NOT NULL,
+      completed BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_quizzes_doc_user ON quizzes(document_id, user_id);
+  `);
+
   console.log('Database tables ready');
 }
 
