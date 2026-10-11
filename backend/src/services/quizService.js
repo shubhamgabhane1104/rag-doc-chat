@@ -1,7 +1,23 @@
 const { GoogleGenAI } = require('@google/genai');
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const GENERATION_MODEL = 'gemini-3.8-flash';
+const MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash'];
+
+async function callGeminiWithFallback(options) {
+  let lastError;
+  for (const model of MODELS) {
+    try {
+      return await ai.models.generateContent({
+        ...options,
+        model,
+      });
+    } catch (err) {
+      lastError = err;
+      console.warn(`Quiz generation model ${model} failed (${err.message}). Trying fallback...`);
+    }
+  }
+  throw lastError;
+}
 
 /**
  * Samples chunks evenly if the document has many chunks,
@@ -76,8 +92,7 @@ Required JSON Structure:
 
   let response;
   try {
-    response = await ai.models.generateContent({
-      model: GENERATION_MODEL,
+    response = await callGeminiWithFallback({
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -85,8 +100,7 @@ Required JSON Structure:
     });
   } catch (err) {
     // Fallback without responseMimeType if not supported
-    response = await ai.models.generateContent({
-      model: GENERATION_MODEL,
+    response = await callGeminiWithFallback({
       contents: prompt,
     });
   }
@@ -121,16 +135,14 @@ Required JSON Structure:
 
   let response;
   try {
-    response = await ai.models.generateContent({
-      model: GENERATION_MODEL,
+    response = await callGeminiWithFallback({
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
       },
     });
   } catch (err) {
-    response = await ai.models.generateContent({
-      model: GENERATION_MODEL,
+    response = await callGeminiWithFallback({
       contents: prompt,
     });
   }

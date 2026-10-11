@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import client from '../api/client';
 import { useTheme } from '../context/ThemeContext';
+import SummaryModal from '../components/SummaryModal';
 
 export default function Quiz() {
   const { documentId } = useParams();
@@ -59,6 +60,7 @@ export default function Quiz() {
   const [quizHistory, setQuizHistory] = useState([]);
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
 
   const themeOptions = [
     { value: 'light', icon: Sun, label: 'Light' },
@@ -260,6 +262,16 @@ export default function Quiz() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Summary Modal Toggle */}
+          <button
+            onClick={() => setShowSummaryModal(true)}
+            className="flex items-center gap-1.5 text-xs font-medium bg-fuchsia-50 hover:bg-fuchsia-100 dark:bg-fuchsia-950 dark:hover:bg-fuchsia-900 text-fuchsia-700 dark:text-fuchsia-300 border border-fuchsia-200/60 dark:border-fuchsia-800/80 px-3 py-1.5 rounded-lg transition"
+            title="View AI Document Insights & Summary"
+          >
+            <Sparkles size={14} />
+            <span className="hidden md:inline">Summary</span>
+          </button>
+
           {/* Link to Chat */}
           <button
             onClick={() => navigate(`/chat/${documentId}`)}
@@ -982,6 +994,15 @@ export default function Quiz() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Summary Modal */}
+      {showSummaryModal && (
+        <SummaryModal
+          documentId={documentId}
+          filename={documentInfo?.filename}
+          onClose={() => setShowSummaryModal(false)}
+        />
       )}
     </div>
   );

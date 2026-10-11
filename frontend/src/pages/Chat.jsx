@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Loader2, FileText, Sun, Moon, Monitor, GraduationCap } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, FileText, Sun, Moon, Monitor, GraduationCap, Sparkles } from 'lucide-react';
 import client from '../api/client';
 import { useTheme } from '../context/ThemeContext';
+import SummaryModal from '../components/SummaryModal';
 
 export default function Chat() {
   const { documentId } = useParams();
@@ -10,6 +11,7 @@ export default function Chat() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
   const bottomRef = useRef(null);
   const { mode, setTheme } = useTheme();
 
@@ -73,14 +75,23 @@ export default function Chat() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowSummary(true)}
+            className="flex items-center gap-1.5 text-xs font-semibold bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-950/80 dark:hover:bg-fuchsia-900 dark:text-fuchsia-300 border border-fuchsia-200/60 dark:border-fuchsia-800/80 px-2.5 py-1.5 rounded-lg transition"
+            title="View AI Document Insights & Summary"
+          >
+            <Sparkles size={14} />
+            <span className="hidden sm:inline">Summary</span>
+          </button>
+
           <button
             onClick={() => navigate(`/quiz/${documentId}`)}
-            className="flex items-center gap-1.5 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:hover:bg-indigo-900 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/80 px-3 py-1.5 rounded-lg transition"
+            className="flex items-center gap-1.5 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:hover:bg-indigo-900 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/80 px-2.5 py-1.5 rounded-lg transition"
             title="Take Quiz & Viva Prep"
           >
-            <GraduationCap size={15} />
-            <span className="hidden sm:inline">Quiz & Viva Prep</span>
+            <GraduationCap size={14} />
+            <span className="hidden sm:inline">Quiz & Viva</span>
           </button>
 
           {/* Theme Toggle */}
@@ -162,6 +173,13 @@ export default function Chat() {
           </button>
         </div>
       </form>
+
+      {showSummary && (
+        <SummaryModal
+          documentId={documentId}
+          onClose={() => setShowSummary(false)}
+        />
+      )}
     </div>
   );
 }

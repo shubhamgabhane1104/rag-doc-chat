@@ -85,6 +85,24 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_quizzes_doc_user ON quizzes(document_id, user_id);
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS document_summaries (
+      id UUID PRIMARY KEY,
+      document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      executive_summary TEXT NOT NULL,
+      key_takeaways JSONB NOT NULL,
+      glossary JSONB,
+      reading_time INTEGER DEFAULT 5,
+      difficulty TEXT DEFAULT 'Intermediate',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_summaries_doc_user ON document_summaries(document_id, user_id);
+  `);
+
   console.log('Database tables ready');
 }
 

@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, FileText, LogOut, MessageSquare, Trash2, Loader2, CheckCircle2, XCircle, Eye, X, Sun, Moon, Monitor, GraduationCap } from 'lucide-react';
+import { Upload, FileText, LogOut, MessageSquare, Trash2, Loader2, CheckCircle2, XCircle, Eye, X, Sun, Moon, Monitor, GraduationCap, Sparkles } from 'lucide-react';
 import client from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import SummaryModal from '../components/SummaryModal';
 
 export default function Dashboard() {
   const [documents, setDocuments] = useState([]);
@@ -12,6 +13,7 @@ export default function Dashboard() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [previewDoc, setPreviewDoc] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [summaryDoc, setSummaryDoc] = useState(null);
   const fileInputRef = useRef(null);
   const { user, logout } = useAuth();
   const { mode, setTheme } = useTheme();
@@ -232,6 +234,17 @@ export default function Dashboard() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          setSummaryDoc(doc);
+                        }}
+                        className="flex items-center gap-1.5 text-xs font-semibold bg-fuchsia-50 hover:bg-fuchsia-100 dark:bg-fuchsia-950/80 dark:hover:bg-fuchsia-900 text-fuchsia-700 dark:text-fuchsia-300 border border-fuchsia-200/60 dark:border-fuchsia-800/80 px-2.5 py-1.5 rounded-lg transition"
+                        title="View AI Executive Summary & Insights"
+                      >
+                        <Sparkles size={14} />
+                        <span className="hidden sm:inline">Summary</span>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
                           navigate(`/quiz/${doc.id}`);
                         }}
                         className="flex items-center gap-1.5 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/80 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/80 px-2.5 py-1.5 rounded-lg transition"
@@ -344,6 +357,13 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      )}
+      {summaryDoc && (
+        <SummaryModal
+          documentId={summaryDoc.id}
+          filename={summaryDoc.filename}
+          onClose={() => setSummaryDoc(null)}
+        />
       )}
     </>
   );
