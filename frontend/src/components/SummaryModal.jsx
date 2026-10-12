@@ -14,9 +14,12 @@ import {
   CheckCircle2,
   Info,
   Flame,
-  AlertCircle
+  AlertCircle,
+  Download,
+  FileDown
 } from 'lucide-react';
 import client from '../api/client';
+import { exportStudyGuideToPdf, downloadTextFile } from '../utils/exportUtils';
 
 export default function SummaryModal({ documentId, filename, onClose }) {
   const [activeTab, setActiveTab] = useState('executive'); // 'executive' | 'takeaways' | 'glossary'
@@ -90,6 +93,36 @@ export default function SummaryModal({ documentId, filename, onClose }) {
     setTimeout(() => setCopied(false), 2500);
   };
 
+  const handleDownloadMarkdown = () => {
+    if (!summaryData) return;
+    let text = `# Summary: ${summaryData.filename || filename || 'Document'}\n\n`;
+    text += `**Difficulty:** ${summaryData.difficulty} | **Est. Reading Time:** ${summaryData.readingTimeMinutes} mins\n\n`;
+    text += `## Executive Summary\n${summaryData.executiveSummary}\n\n`;
+
+    if (summaryData.keyTakeaways?.length > 0) {
+      text += `## Key Takeaways\n`;
+      summaryData.keyTakeaways.forEach((section) => {
+        text += `\n### ${section.topic}\n`;
+        section.points?.forEach((pt) => {
+          text += `- ${pt}\n`;
+        });
+      });
+      text += `\n`;
+    }
+
+    if (summaryData.glossary?.length > 0) {
+      text += `## Key Terminology & Glossary\n`;
+      summaryData.glossary.forEach((item) => {
+        text += `- **${item.term}:** ${item.definition}\n`;
+      });
+    }
+
+    downloadTextFile(
+      `${(summaryData.filename || filename || 'document').replace(/\.[^/.]+$/, '')}-summary.md`,
+      text
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 md:p-6 animate-fade-in">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
@@ -120,19 +153,37 @@ export default function SummaryModal({ documentId, filename, onClose }) {
             {summaryData && (
               <>
                 <button
+                  onClick={() => exportStudyGuideToPdf(summaryData.filename || filename, summaryData, null)}
+                  title="Download complete formatted Study Guide as PDF"
+                  className="flex items-center gap-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl shadow-xs transition"
+                >
+                  <FileDown size={14} />
+                  <span className="hidden sm:inline">PDF Guide</span>
+                </button>
+
+                <button
+                  onClick={handleDownloadMarkdown}
+                  title="Download as Markdown file"
+                  className="flex items-center gap-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-2.5 py-1.5 rounded-xl transition"
+                >
+                  <Download size={14} />
+                  <span className="hidden sm:inline">.MD</span>
+                </button>
+
+                <button
                   onClick={handleCopyMarkdown}
                   title="Copy formatted markdown to clipboard"
-                  className="flex items-center gap-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-xl transition"
+                  className="flex items-center gap-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-2.5 py-1.5 rounded-xl transition"
                 >
                   {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                  <span className="hidden sm:inline">{copied ? 'Copied!' : 'Copy'}</span>
+                  <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy'}</span>
                 </button>
 
                 <button
                   onClick={() => loadSummary(true)}
                   disabled={regenerating}
                   title="Force regenerate summary"
-                  className="flex items-center gap-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-xl transition disabled:opacity-50"
+                  className="flex items-center gap-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-2.5 py-1.5 rounded-xl transition disabled:opacity-50"
                 >
                   <RotateCcw size={14} className={regenerating ? 'animate-spin' : ''} />
                   <span className="hidden sm:inline">Regenerate</span>

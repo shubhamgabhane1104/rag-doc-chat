@@ -22,11 +22,14 @@ import {
   Monitor,
   Check,
   Flame,
-  Info
+  Info,
+  Download,
+  FileDown
 } from 'lucide-react';
 import client from '../api/client';
 import { useTheme } from '../context/ThemeContext';
 import SummaryModal from '../components/SummaryModal';
+import { exportQuizScorecardPdf, exportStudyGuideToPdf } from '../utils/exportUtils';
 
 export default function Quiz() {
   const { documentId } = useParams();
@@ -272,6 +275,17 @@ export default function Quiz() {
             <span className="hidden md:inline">Summary</span>
           </button>
 
+          {/* Download Study Guide PDF */}
+          <button
+            onClick={() => exportStudyGuideToPdf(documentInfo?.filename, null, currentQuiz)}
+            disabled={!currentQuiz}
+            className="flex items-center gap-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 px-3 py-1.5 rounded-lg transition disabled:opacity-40"
+            title="Download Study & Revision Guide PDF"
+          >
+            <Download size={14} />
+            <span className="hidden md:inline">Download PDF</span>
+          </button>
+
           {/* Link to Chat */}
           <button
             onClick={() => navigate(`/chat/${documentId}`)}
@@ -490,20 +504,28 @@ export default function Quiz() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+                    <button
+                      onClick={() => exportQuizScorecardPdf(documentInfo?.filename, currentQuiz, quizResult)}
+                      className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-3.5 py-2.5 rounded-xl font-medium text-xs md:text-sm transition shadow-xs"
+                      title="Download Scorecard Report as PDF"
+                    >
+                      <FileDown size={16} />
+                      <span>Scorecard PDF</span>
+                    </button>
                     <button
                       onClick={handleRetake}
-                      className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-4 py-2.5 rounded-xl font-medium text-sm transition"
+                      className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-3.5 py-2.5 rounded-xl font-medium text-xs md:text-sm transition"
                     >
-                      <RotateCcw size={16} />
-                      <span>Retake Quiz</span>
+                      <RotateCcw size={15} />
+                      <span>Retake</span>
                     </button>
                     <button
                       onClick={() => handleGenerate('mcq')}
-                      className="flex items-center gap-2 bg-white text-indigo-700 hover:bg-indigo-50 px-4 py-2.5 rounded-xl font-semibold text-sm shadow transition"
+                      className="flex items-center gap-1.5 bg-white text-indigo-700 hover:bg-indigo-50 px-3.5 py-2.5 rounded-xl font-semibold text-xs md:text-sm shadow transition"
                     >
-                      <Sparkles size={16} />
-                      <span>New Questions</span>
+                      <Sparkles size={15} />
+                      <span>New Set</span>
                     </button>
                   </div>
                 </div>
