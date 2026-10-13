@@ -126,11 +126,28 @@ export default function Dashboard() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/40 to-fuchsia-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
         {/* Top nav */}
         <div className="bg-gradient-to-r from-indigo-600 via-indigo-600 to-fuchsia-600 dark:from-indigo-900 dark:via-indigo-900 dark:to-fuchsia-900 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-lg">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <MessageSquare size={16} className="text-white" />
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/dashboard')}>
+              <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                <MessageSquare size={16} className="text-white" />
+              </div>
+              <span className="font-semibold text-white">DocChat</span>
             </div>
-            <span className="font-semibold text-white">DocChat</span>
+
+            {/* Navigation Tabs */}
+            <div className="hidden sm:flex items-center bg-black/10 backdrop-blur-sm p-1 rounded-xl gap-1">
+              <button
+                className="px-3 py-1 rounded-lg text-xs font-semibold bg-white text-indigo-700 shadow-sm"
+              >
+                My Documents
+              </button>
+              <button
+                onClick={() => navigate('/workspaces')}
+                className="px-3 py-1 rounded-lg text-xs font-semibold text-white/80 hover:text-white transition"
+              >
+                Workspaces (Cross-Doc)
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
