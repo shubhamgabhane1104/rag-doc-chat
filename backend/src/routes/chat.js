@@ -6,6 +6,7 @@ const { requireAuth } = require('../middleware/auth');
 const { embedText } = require('../services/embeddingService');
 const vectorStore = require('../services/vectorStore');
 const { generateAnswer } = require('../services/llmService');
+const { cleanErrorMessage } = require('../services/geminiClient');
 
 const router = express.Router();
 
@@ -71,7 +72,7 @@ router.post('/:documentId/message', requireAuth, async (req, res) => {
     res.json({ answer, sources });
   } catch (err) {
     console.error('Chat message error:', err);
-    res.status(500).json({ error: 'Failed to generate an answer. Please try again.' });
+    res.status(500).json({ error: cleanErrorMessage(err) });
   }
 });
 

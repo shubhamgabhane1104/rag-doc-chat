@@ -47,4 +47,23 @@ function search(documentId, queryVector, topK = 4) {
   return scored.slice(0, topK);
 }
 
-module.exports = { saveVectors, loadVectors, deleteVectors, search, cosineSimilarity };
+function searchMultiDocs(documentIds, queryVector, topK = 6) {
+  if (!documentIds || documentIds.length === 0) return [];
+  const allScored = [];
+
+  for (const docId of documentIds) {
+    const entries = loadVectors(docId);
+    for (const entry of entries) {
+      allScored.push({
+        ...entry,
+        documentId: docId,
+        score: cosineSimilarity(entry.vector, queryVector),
+      });
+    }
+  }
+
+  allScored.sort((a, b) => b.score - a.score);
+  return allScored.slice(0, topK);
+}
+
+module.exports = { saveVectors, loadVectors, deleteVectors, search, searchMultiDocs, cosineSimilarity };

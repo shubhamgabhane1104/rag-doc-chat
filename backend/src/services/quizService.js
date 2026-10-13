@@ -1,23 +1,4 @@
-const { GoogleGenAI } = require('@google/genai');
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash'];
-
-async function callGeminiWithFallback(options) {
-  let lastError;
-  for (const model of MODELS) {
-    try {
-      return await ai.models.generateContent({
-        ...options,
-        model,
-      });
-    } catch (err) {
-      lastError = err;
-      console.warn(`Quiz generation model ${model} failed (${err.message}). Trying fallback...`);
-    }
-  }
-  throw lastError;
-}
+const { callGeminiWithFallback } = require('./geminiClient');
 
 /**
  * Samples chunks evenly if the document has many chunks,

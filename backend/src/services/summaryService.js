@@ -1,30 +1,4 @@
-const { GoogleGenAI } = require('@google/genai');
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash'];
-
-/**
- * Execute Gemini generateContent with automatic model fallback
- * (e.g. falls back to 3.6-flash if 3.8-flash is busy with 503)
- */
-async function callGeminiWithFallback(options) {
-  let lastError;
-
-  for (const model of MODELS) {
-    try {
-      const res = await ai.models.generateContent({
-        ...options,
-        model,
-      });
-      return res;
-    } catch (err) {
-      lastError = err;
-      console.warn(`Model ${model} returned error (${err.message}). Trying fallback...`);
-    }
-  }
-
-  throw lastError;
-}
+const { callGeminiWithFallback } = require('./geminiClient');
 
 /**
  * Safely parse JSON from LLM response, stripping markdown blocks if present.

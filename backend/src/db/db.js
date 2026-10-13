@@ -103,6 +103,53 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_summaries_doc_user ON document_summaries(document_id, user_id);
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS workspaces (
+      id UUID PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      description TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS workspace_documents (
+      workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+      added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (workspace_id, document_id)
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS workspace_chats (
+      id UUID PRIMARY KEY,
+      workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT DEFAULT 'Workspace Chat',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS workspace_messages (
+      id UUID PRIMARY KEY,
+      chat_id UUID NOT NULL REFERENCES workspace_chats(id) ON DELETE CASCADE,
+      role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+      content TEXT NOT NULL,
+      sources TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_workspaces_user ON workspaces(user_id);
+    CREATE INDEX IF NOT EXISTS idx_workspace_docs_ws ON workspace_documents(workspace_id);
+    CREATE INDEX IF NOT EXISTS idx_workspace_chats_ws ON workspace_chats(workspace_id);
+    CREATE INDEX IF NOT EXISTS idx_workspace_messages_chat ON workspace_messages(chat_id);
+  `);
+
   console.log('Database tables ready');
 }
 

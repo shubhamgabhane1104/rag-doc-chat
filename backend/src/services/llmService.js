@@ -1,7 +1,4 @@
-const { GoogleGenAI } = require('@google/genai');
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const GENERATION_MODEL = 'gemini-3.6-flash';
+const { callGeminiWithFallback } = require('./geminiClient');
 
 function buildPrompt(question, contextChunks) {
   const contextText = contextChunks
@@ -23,8 +20,7 @@ Answer:`;
 async function generateAnswer(question, contextChunks) {
   const prompt = buildPrompt(question, contextChunks);
 
-  const response = await ai.models.generateContent({
-    model: GENERATION_MODEL,
+  const response = await callGeminiWithFallback({
     contents: prompt,
   });
 
