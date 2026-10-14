@@ -14,9 +14,9 @@ import {
   Sun,
   Moon,
   Monitor,
-  Check,
   X,
-  FileSearch
+  FileSearch,
+  BarChart3
 } from 'lucide-react';
 import client from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -140,6 +140,13 @@ export default function Workspaces() {
               className="px-3 py-1 rounded-lg text-xs font-semibold bg-white text-indigo-700 shadow-sm"
             >
               Workspaces (Cross-Doc)
+            </button>
+            <button
+              onClick={() => navigate('/analytics')}
+              className="px-3 py-1 rounded-lg text-xs font-semibold text-white/80 hover:text-white flex items-center gap-1.5 transition"
+            >
+              <BarChart3 size={13} />
+              Analytics
             </button>
           </div>
         </div>

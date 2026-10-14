@@ -66,4 +66,49 @@ function searchMultiDocs(documentIds, queryVector, topK = 6) {
   return allScored.slice(0, topK);
 }
 
-module.exports = { saveVectors, loadVectors, deleteVectors, search, searchMultiDocs, cosineSimilarity };
+function getVectorStoreStats() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      return { totalDocumentsIndexed: 0, totalVectors: 0, storageBytes: 0, storagePretty: '0 KB', dimension: 3072 };
+    }
+    const files = fs.readdirSync(DATA_DIR).filter((f) => f.endsWith('.json'));
+    let totalVectors = 0;
+    let storageBytes = 0;
+
+    for (const file of files) {
+      const filePath = path.join(DATA_DIR, file);
+      const stat = fs.statSync(filePath);
+      storageBytes += stat.size;
+      try {
+        const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        if (Array.isArray(content)) {
+          totalVectors += content.length;
+        }
+      } catch (err) {}
+    }
+
+    const storagePretty = storageBytes > 1024 * 1024 
+      ? `${(storageBytes / (1024 * 1024)).toFixed(2)} MB` 
+      : `${(storageBytes / 1024).toFixed(1)} KB`;
+
+    return {
+      totalDocumentsIndexed: files.length,
+      totalVectors,
+      storageBytes,
+      storagePretty,
+      dimension: 3072,
+    };
+  } catch (err) {
+    return { totalDocumentsIndexed: 0, totalVectors: 0, storageBytes: 0, storagePretty: '0 KB', dimension: 3072 };
+  }
+}
+
+module.exports = {
+  saveVectors,
+  loadVectors,
+  deleteVectors,
+  search,
+  searchMultiDocs,
+  cosineSimilarity,
+  getVectorStoreStats,
+};

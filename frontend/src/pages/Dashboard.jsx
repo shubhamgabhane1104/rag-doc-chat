@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, FileText, LogOut, MessageSquare, Trash2, Loader2, CheckCircle2, XCircle, Eye, X, Sun, Moon, Monitor, GraduationCap, Sparkles } from 'lucide-react';
+import { Upload, FileText, LogOut, MessageSquare, Trash2, Loader2, CheckCircle2, XCircle, Eye, X, Sun, Moon, Monitor, GraduationCap, Sparkles, BarChart3 } from 'lucide-react';
 import client from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -146,6 +146,13 @@ export default function Dashboard() {
                 className="px-3 py-1 rounded-lg text-xs font-semibold text-white/80 hover:text-white transition"
               >
                 Workspaces (Cross-Doc)
+              </button>
+              <button
+                onClick={() => navigate('/analytics')}
+                className="px-3 py-1 rounded-lg text-xs font-semibold text-white/80 hover:text-white flex items-center gap-1.5 transition"
+              >
+                <BarChart3 size={13} />
+                Analytics
               </button>
             </div>
           </div>
