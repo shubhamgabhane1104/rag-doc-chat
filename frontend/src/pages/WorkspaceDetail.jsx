@@ -26,11 +26,15 @@ import {
 import client from '../api/client';
 import { useTheme } from '../context/ThemeContext';
 import { exportChatToPdf, exportChatToMarkdown } from '../utils/exportUtils';
+import { useVoiceAssistant } from '../hooks/useVoiceAssistant';
+import VoiceMicButton from '../components/VoiceMicButton';
+import AudioMessagePlayer from '../components/AudioMessagePlayer';
 
 export default function WorkspaceDetail() {
   const { id: workspaceId } = useParams();
   const navigate = useNavigate();
   const { mode, setTheme } = useTheme();
+  const voice = useVoiceAssistant();
 
   const [workspace, setWorkspace] = useState(null);
   const [allUserDocs, setAllUserDocs] = useState([]);
@@ -352,6 +356,25 @@ export default function WorkspaceDetail() {
                 >
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</p>
 
+                  {/* Read Aloud Voice Button for Assistant Response */}
+                  {m.role === 'assistant' && (
+                    <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
+                      <AudioMessagePlayer
+                        messageId={m.id || mIdx}
+                        content={m.content}
+                        isSpeaking={voice.isSpeaking}
+                        isPaused={voice.isPaused}
+                        activeMessageId={voice.activeMessageId}
+                        speechRate={voice.speechRate}
+                        setSpeechRate={voice.setSpeechRate}
+                        onSpeak={voice.speakText}
+                        onPause={voice.pauseSpeech}
+                        onResume={voice.resumeSpeech}
+                        onStop={voice.stopSpeech}
+                      />
+                    </div>
+                  )}
+
                   {/* Multi-Source Citations */}
                   {m.sources && m.sources.length > 0 && (
                     <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/80 space-y-2">
@@ -406,13 +429,27 @@ export default function WorkspaceDetail() {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={`Ask a question across all ${attachedDocs.length} workspace documents...`}
-              className="flex-1 px-4 py-2.5 bg-transparent text-slate-900 dark:text-white placeholder:text-slate-400 text-sm focus:outline-none"
+              placeholder={
+                voice.isListening
+                  ? 'Listening across workspace documents... (Click mic to stop)'
+                  : `Ask a question across all ${attachedDocs.length} workspace documents...`
+              }
+              className={`flex-1 px-4 py-2.5 bg-transparent text-slate-900 dark:text-white placeholder:text-slate-400 text-sm focus:outline-none ${
+                voice.isListening ? 'italic font-medium text-indigo-600 dark:text-indigo-400' : ''
+              }`}
+            />
+            <VoiceMicButton
+              isListening={voice.isListening}
+              onStart={() => voice.startListening((text) => setInput(text))}
+              onStop={voice.stopListening}
+              sttSupported={voice.sttSupported}
+              errorMessage={voice.sttError}
             />
             <button
               type="submit"
               disabled={sending || !input.trim() || attachedDocs.length === 0}
               className="bg-indigo-600 hover:bg-indigo-700 text-white p-2.5 rounded-xl disabled:opacity-40 transition shrink-0"
+              title="Send Cross-Document Question"
             >
               <Send size={18} />
             </button>

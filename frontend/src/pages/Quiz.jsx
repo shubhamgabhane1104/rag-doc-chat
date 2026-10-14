@@ -30,11 +30,14 @@ import client from '../api/client';
 import { useTheme } from '../context/ThemeContext';
 import SummaryModal from '../components/SummaryModal';
 import { exportQuizScorecardPdf, exportStudyGuideToPdf } from '../utils/exportUtils';
+import { useVoiceAssistant } from '../hooks/useVoiceAssistant';
+import AudioMessagePlayer from '../components/AudioMessagePlayer';
 
 export default function Quiz() {
   const { documentId } = useParams();
   const navigate = useNavigate();
   const { mode, setTheme } = useTheme();
+  const voice = useVoiceAssistant();
 
   // Document details
   const [documentInfo, setDocumentInfo] = useState(null);
@@ -864,6 +867,23 @@ export default function Quiz() {
                           <h4 className="text-base font-semibold text-slate-900 dark:text-white leading-snug">
                             {item.question}
                           </h4>
+
+                          {/* Voice Readout for Question */}
+                          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                            <AudioMessagePlayer
+                              messageId={`viva-q-${idx}`}
+                              content={item.question}
+                              isSpeaking={voice.isSpeaking}
+                              isPaused={voice.isPaused}
+                              activeMessageId={voice.activeMessageId}
+                              speechRate={voice.speechRate}
+                              setSpeechRate={voice.setSpeechRate}
+                              onSpeak={voice.speakText}
+                              onPause={voice.pauseSpeech}
+                              onResume={voice.resumeSpeech}
+                              onStop={voice.stopSpeech}
+                            />
+                          </div>
                         </div>
                       </div>
 
@@ -895,9 +915,24 @@ export default function Quiz() {
                       <div className="px-5 pb-5 pt-1 border-t border-slate-100 dark:border-slate-700/60 space-y-4">
                         {/* Model Spoken Answer */}
                         <div className="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-4 border border-slate-100 dark:border-slate-800">
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-1.5">
-                            <BookOpen size={14} />
-                            <span>Recommended Oral Answer (What to speak):</span>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                              <BookOpen size={14} />
+                              <span>Recommended Oral Answer (What to speak):</span>
+                            </div>
+                            <AudioMessagePlayer
+                              messageId={`viva-ans-${idx}`}
+                              content={item.modelAnswer}
+                              isSpeaking={voice.isSpeaking}
+                              isPaused={voice.isPaused}
+                              activeMessageId={voice.activeMessageId}
+                              speechRate={voice.speechRate}
+                              setSpeechRate={voice.setSpeechRate}
+                              onSpeak={voice.speakText}
+                              onPause={voice.pauseSpeech}
+                              onResume={voice.resumeSpeech}
+                              onStop={voice.stopSpeech}
+                            />
                           </div>
                           <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed italic">
                             "{item.modelAnswer}"

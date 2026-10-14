@@ -5,6 +5,9 @@ import client from '../api/client';
 import { useTheme } from '../context/ThemeContext';
 import SummaryModal from '../components/SummaryModal';
 import { exportChatToPdf, exportChatToMarkdown, exportStudyGuideToPdf } from '../utils/exportUtils';
+import { useVoiceAssistant } from '../hooks/useVoiceAssistant';
+import VoiceMicButton from '../components/VoiceMicButton';
+import AudioMessagePlayer from '../components/AudioMessagePlayer';
 
 export default function Chat() {
   const { documentId } = useParams();
@@ -18,6 +21,7 @@ export default function Chat() {
   const [exportingStudyGuide, setExportingStudyGuide] = useState(false);
   const bottomRef = useRef(null);
   const { mode, setTheme } = useTheme();
+  const voice = useVoiceAssistant();
 
   useEffect(() => {
     client.get('/documents').then((res) => {
@@ -241,6 +245,26 @@ export default function Chat() {
                 }`}
               >
                 <p className="whitespace-pre-wrap text-sm">{m.content}</p>
+
+                {/* Voice Read Aloud for Assistant Answers */}
+                {m.role === 'assistant' && (
+                  <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
+                    <AudioMessagePlayer
+                      messageId={m.id || i}
+                      content={m.content}
+                      isSpeaking={voice.isSpeaking}
+                      isPaused={voice.isPaused}
+                      activeMessageId={voice.activeMessageId}
+                      speechRate={voice.speechRate}
+                      setSpeechRate={voice.setSpeechRate}
+                      onSpeak={voice.speakText}
+                      onPause={voice.pauseSpeech}
+                      onResume={voice.resumeSpeech}
+                      onStop={voice.stopSpeech}
+                    />
+                  </div>
+                )}
+
                 {m.sources && m.sources.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-1.5">
                     <p className="text-xs font-medium text-slate-400 dark:text-slate-500">Sources</p>
@@ -266,17 +290,33 @@ export default function Chat() {
       </div>
 
       <form onSubmit={handleSend} className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-6 py-4">
-        <div className="max-w-3xl mx-auto flex gap-3">
+        <div className="max-w-3xl mx-auto flex items-center gap-2 sm:gap-3">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask a question about this document..."
-            className="flex-1 px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+            placeholder={
+              voice.isListening
+                ? 'Listening to speech... (Click mic to stop)'
+                : 'Ask a question about this document...'
+            }
+            className={`flex-1 px-4 py-2.5 border rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition ${
+              voice.isListening
+                ? 'border-red-400 dark:border-red-500 ring-2 ring-red-400/20'
+                : 'border-slate-300 dark:border-slate-600'
+            }`}
+          />
+          <VoiceMicButton
+            isListening={voice.isListening}
+            onStart={() => voice.startListening((text) => setInput(text))}
+            onStop={voice.stopListening}
+            sttSupported={voice.sttSupported}
+            errorMessage={voice.sttError}
           />
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl hover:bg-indigo-700 disabled:opacity-40 transition"
+            className="bg-indigo-600 text-white p-2.5 sm:px-4 sm:py-2.5 rounded-xl hover:bg-indigo-700 disabled:opacity-40 transition shrink-0"
+            title="Send Question"
           >
             <Send size={18} />
           </button>
