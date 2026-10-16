@@ -15,9 +15,17 @@ async function initDb() {
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
+    password_hash TEXT,
+    auth_provider TEXT DEFAULT 'local',
+    google_id TEXT,
+    avatar_url TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
+
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider TEXT DEFAULT 'local';
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+  ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
 `);
 
   await pool.query(`

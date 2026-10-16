@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FileText, MessageSquare, Sparkles, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -105,6 +106,20 @@ export default function Login() {
             >
               {loading ? 'Logging in...' : 'Log in'}
             </button>
+
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white dark:bg-slate-900 px-2 text-slate-400 dark:text-slate-500">or</span>
+              </div>
+            </div>
+
+            <GoogleSignInButton
+              text="Continue with Google"
+              onError={(err) => setError(err)}
+            />
           </form>
 
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-6 text-center">
