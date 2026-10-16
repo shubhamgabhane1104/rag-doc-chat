@@ -158,6 +158,21 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_workspace_messages_chat ON workspace_messages(chat_id);
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS document_knowledge_graphs (
+      id UUID PRIMARY KEY,
+      document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      central_topic TEXT NOT NULL,
+      summary TEXT,
+      nodes JSONB NOT NULL,
+      edges JSONB NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_graph_doc_user ON document_knowledge_graphs(document_id, user_id);
+  `);
+
   console.log('Database tables ready');
 }
 

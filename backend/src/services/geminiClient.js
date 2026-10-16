@@ -9,11 +9,12 @@ const ai = new GoogleGenAI({ apiKey });
 
 // Prioritize currently healthiest, high-throughput models with active server capacity
 const MODELS = [
-  'gemini-3-flash-preview',        // Primary: Highest availability, responsive, 0% 503 error rate
-  'gemini-3.1-flash-lite-preview',  // Secondary: High throughput preview tier
-  'gemini-3.6-flash',              // Tertiary fallback
-  'gemini-flash-latest',           // Quaternary dynamic alias
-  'gemini-3.8-flash',              // Quinary fallback
+  'gemini-3.5-flash',              // Primary: Verified active, high throughput, fast response
+  'gemini-3.5-flash-lite',         // Secondary: High throughput fallback
+  'gemini-flash-lite-latest',      // Tertiary: Dynamic alias fallback
+  'gemini-3-flash-preview',        // Quaternary fallback
+  'gemini-3.1-flash-lite-preview',  // Quinary fallback
+  'gemini-3.8-flash',              // Senary fallback
 ];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

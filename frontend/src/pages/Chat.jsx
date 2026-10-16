@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Loader2, FileText, Sun, Moon, Monitor, GraduationCap, Sparkles, Download, ChevronDown, FileDown } from 'lucide-react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { ArrowLeft, Send, Loader2, FileText, Sun, Moon, Monitor, GraduationCap, Sparkles, Download, ChevronDown, FileDown, Network } from 'lucide-react';
 import client from '../api/client';
 import { useTheme } from '../context/ThemeContext';
 import SummaryModal from '../components/SummaryModal';
@@ -12,6 +12,7 @@ import AudioMessagePlayer from '../components/AudioMessagePlayer';
 export default function Chat() {
   const { documentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -22,6 +23,12 @@ export default function Chat() {
   const bottomRef = useRef(null);
   const { mode, setTheme } = useTheme();
   const voice = useVoiceAssistant();
+
+  useEffect(() => {
+    if (location.state?.initialQuestion) {
+      setInput(location.state.initialQuestion);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     client.get('/documents').then((res) => {
@@ -142,6 +149,16 @@ export default function Chat() {
           >
             <GraduationCap size={14} />
             <span className="hidden sm:inline">Quiz & Viva</span>
+          </button>
+
+          {/* AI Knowledge Graph & Concept Mind Map */}
+          <button
+            onClick={() => navigate(`/graph/${documentId}`)}
+            className="flex items-center gap-1.5 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:hover:bg-emerald-900 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/80 px-2.5 py-1.5 rounded-lg transition"
+            title="Interactive AI Knowledge Graph & Concept Mind Map"
+          >
+            <Network size={14} />
+            <span className="hidden sm:inline">Concept Graph</span>
           </button>
 
           {/* Export Dropdown Menu */}

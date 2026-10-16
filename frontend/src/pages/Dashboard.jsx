@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, FileText, LogOut, MessageSquare, Trash2, Loader2, CheckCircle2, XCircle, Eye, X, Sun, Moon, Monitor, GraduationCap, Sparkles, BarChart3 } from 'lucide-react';
+import { Upload, FileText, LogOut, MessageSquare, Trash2, Loader2, CheckCircle2, XCircle, Eye, X, Sun, Moon, Monitor, GraduationCap, Sparkles, BarChart3, Network, RotateCw } from 'lucide-react';
 import client from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -79,6 +79,36 @@ export default function Dashboard() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleRetry = async (id, e) => {
+    e.stopPropagation();
+    try {
+      await client.post(`/documents/${id}/retry`);
+      fetchDocuments();
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error || 'Failed to retry processing');
+    }
+  };
+
+  const formatDocError = (msg) => {
+    if (!msg) return 'Processing failed';
+    if (msg.includes('429') || msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED')) {
+      return 'Rate limit reached. Click Retry to continue.';
+    }
+    if (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand')) {
+      return 'AI servers busy. Click Retry in a moment.';
+    }
+    if (msg.startsWith('{') && msg.includes('"message"')) {
+      try {
+        const parsed = JSON.parse(msg);
+        return parsed.error?.message || 'Processing failed';
+      } catch (e) {
+        return 'Processing failed';
+      }
+    }
+    return msg;
   };
 
   const handlePreview = async (id, e) => {
@@ -247,12 +277,26 @@ export default function Dashboard() {
                   <div className="min-w-0">
                     <p className="font-medium text-slate-900 dark:text-white truncate">{doc.filename}</p>
                     <p className="text-xs text-slate-400 dark:text-slate-500">
-                      {doc.status === 'ready' ? `${doc.page_count} pages · ${doc.chunk_count} chunks` : doc.error_message || 'Processing...'}
+                      {doc.status === 'ready'
+                        ? `${doc.page_count} pages · ${doc.chunk_count} chunks`
+                        : doc.status === 'failed'
+                        ? <span className="text-red-500 dark:text-red-400">{formatDocError(doc.error_message)}</span>
+                        : 'Processing...'}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {statusBadge(doc.status)}
+                  {doc.status === 'failed' && (
+                    <button
+                      onClick={(e) => handleRetry(doc.id, e)}
+                      className="flex items-center gap-1.5 text-xs font-semibold bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/80 dark:hover:bg-amber-900 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/80 px-2.5 py-1.5 rounded-lg transition"
+                      title="Retry processing document"
+                    >
+                      <RotateCw size={13} />
+                      <span>Retry</span>
+                    </button>
+                  )}
                   {doc.status === 'ready' && (
                     <>
                       <button
@@ -276,6 +320,17 @@ export default function Dashboard() {
                       >
                         <GraduationCap size={14} />
                         <span className="hidden sm:inline">Quiz & Viva</span>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/graph/${doc.id}`);
+                        }}
+                        className="flex items-center gap-1.5 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/80 dark:hover:bg-emerald-900 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/80 px-2.5 py-1.5 rounded-lg transition"
+                        title="Explore AI Knowledge Graph & Concept Map"
+                      >
+                        <Network size={14} />
+                        <span className="hidden sm:inline">Graph</span>
                       </button>
                       <button
                         onClick={(e) => handlePreview(doc.id, e)}

@@ -10,6 +10,7 @@ const { extractTextByPage } = require('../services/documentService');
 const { chunkPages } = require('../services/chunkService');
 const { embedTexts } = require('../services/embeddingService');
 const vectorStore = require('../services/vectorStore');
+const { cleanErrorMessage } = require('../services/geminiClient');
 
 const router = express.Router();
 
@@ -81,12 +82,43 @@ async function processDocument(documentId, filePath) {
     console.log(`Document ${documentId} processed: ${chunks.length} chunks`);
   } catch (err) {
     console.error(`Processing failed for document ${documentId}:`, err);
+    const friendlyError = cleanErrorMessage(err);
     await pool.query(
       'UPDATE documents SET status = $1, error_message = $2 WHERE id = $3',
-      ['failed', err.message || 'Unknown error', documentId]
+      ['failed', friendlyError, documentId]
     );
   }
 }
+
+router.post('/:id/retry', requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM documents WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.userId]
+    );
+    const doc = result.rows[0];
+
+    if (!doc) return res.status(404).json({ error: 'Document not found' });
+    if (!fs.existsSync(doc.file_path)) {
+      return res.status(400).json({ error: 'Source file no longer exists. Please re-upload.' });
+    }
+
+    // Reset document state and clear old chunks/vectors
+    await pool.query('DELETE FROM chunks WHERE document_id = $1', [doc.id]);
+    vectorStore.deleteVectors(doc.id);
+    await pool.query(
+      'UPDATE documents SET status = $1, error_message = NULL WHERE id = $2',
+      ['processing', doc.id]
+    );
+
+    processDocument(doc.id, doc.file_path);
+
+    res.json({ message: 'Document reprocessing initiated', id: doc.id, status: 'processing' });
+  } catch (err) {
+    console.error('Retry failed:', err);
+    res.status(500).json({ error: 'Failed to initiate reprocessing' });
+  }
+});
 
 router.post('/upload', requireAuth, upload.single('file'), async (req, res) => {
   if (!req.file) {

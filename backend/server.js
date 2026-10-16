@@ -9,6 +9,7 @@ const quizRoutes = require('./src/routes/quiz');
 const summariesRoutes = require('./src/routes/summaries');
 const workspaceRoutes = require('./src/routes/workspaces');
 const analyticsRoutes = require('./src/routes/analytics');
+const graphRoutes = require('./src/routes/graphs');
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use('/quiz', quizRoutes);
 app.use('/summaries', summariesRoutes);
 app.use('/workspaces', workspaceRoutes);
 app.use('/analytics', analyticsRoutes);
+app.use('/graphs', graphRoutes);
 
 const PORT = process.env.PORT || 5000;
 

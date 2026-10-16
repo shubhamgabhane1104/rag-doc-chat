@@ -11,6 +11,7 @@ import Quiz from './pages/Quiz';
 import Workspaces from './pages/Workspaces';
 import WorkspaceDetail from './pages/WorkspaceDetail';
 import Analytics from './pages/Analytics';
+import KnowledgeGraph from './pages/KnowledgeGraph';
 
 export default function App() {
   return (
@@ -57,6 +58,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Quiz />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/graph/:documentId"
+            element={
+              <ProtectedRoute>
+                <KnowledgeGraph />
               </ProtectedRoute>
             }
           />
