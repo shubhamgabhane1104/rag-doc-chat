@@ -26,8 +26,6 @@ DocChat is a full-stack Retrieval-Augmented Generation (RAG) application. Upload
 - [Design decisions](#design-decisions)
 - [Limitations and next steps](#limitations-and-next-steps)
 
-A longer write-up (data flow diagrams, every table and column, algorithms, and interview notes) is in [docs/PROJECT_EXPLANATION.txt](docs/PROJECT_EXPLANATION.txt).
-
 ---
 
 ## Features
