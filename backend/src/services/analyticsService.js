@@ -252,7 +252,7 @@ async function getSystemHealth() {
   }
 
   // In-memory / file vector store stats
-  const vectorStats = getVectorStoreStats();
+  const vectorStats = await getVectorStoreStats();
 
   // Process / Node.js telemetry
   const memoryUsage = process.memoryUsage();

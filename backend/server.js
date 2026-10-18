@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const { initDb } = require('./src/db/db');
+const { importLegacyVectorFiles } = require('./src/services/vectorStore');
 const authRoutes = require('./src/routes/auth');
 const documentsRoutes = require('./src/routes/documents');
 const chatRoutes = require('./src/routes/chat');
@@ -12,7 +13,8 @@ const workspaceRoutes = require('./src/routes/workspaces');
 const analyticsRoutes = require('./src/routes/analytics');
 const graphRoutes = require('./src/routes/graphs');
 
-const missing = ['JWT_SECRET', 'GEMINI_API_KEY', 'DB_NAME'].filter((k) => !process.env[k]);
+const missing = ['JWT_SECRET', 'GEMINI_API_KEY'].filter((k) => !process.env[k]);
+if (!process.env.DATABASE_URL && !process.env.DB_NAME) missing.push('DATABASE_URL (or DB_NAME)');
 if (missing.length) {
   console.error(`Missing required environment variables: ${missing.join(', ')}. Add them to backend/.env`);
   process.exit(1);
@@ -68,6 +70,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 initDb()
+  .then(() => importLegacyVectorFiles())
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);

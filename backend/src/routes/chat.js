@@ -52,7 +52,7 @@ async function prepareAnswer(req) {
   const t0 = Date.now();
   const queryVector = await embedText(question);
   const t1 = Date.now();
-  const topChunks = vectorStore.search(documentId, queryVector, 4);
+  const topChunks = await vectorStore.search([documentId], queryVector, 4);
   console.log(`[Chat] embed ${t1 - t0} ms, search ${Date.now() - t1} ms`);
 
   const sources = topChunks.map((c) => ({

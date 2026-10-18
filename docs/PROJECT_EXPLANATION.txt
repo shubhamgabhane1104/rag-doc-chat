@@ -1,0 +1,1297 @@
+================================================================================
+                    DocChat - RAG-based Document Q&A Chatbot
+                Complete Project Explanation and Interview Guide
+================================================================================
+
+Author  : Shubham Gabhane
+Course  : MCA - Mini Project
+Repo    : https://github.com/shubhamgabhane1104/rag-doc-chat
+
+How to use this file
+--------------------
+Part A (sections 1-12) explains the whole project: what it does, how it is
+built, the data flows, the database and the main algorithms. You can reuse
+these sections in your project report.
+Part B (sections 13-17) is interview preparation: how to present the project,
+a demo script, and likely questions with answers.
+
+CONTENTS
+  PART A - THE PROJECT
+   1. Project overview
+   2. Problem statement and objectives
+   3. Modules and features
+   4. Technology stack (and why each was chosen)
+   5. System architecture
+   6. Data flow diagrams (DFD level 0, level 1, detailed flows)
+   7. Database design (tables, columns, relationships, indexes)
+   8. Key algorithms and concepts
+   9. API reference
+  10. Security
+  11. Folder structure (what each file does)
+  12. Testing, limitations and future scope
+  PART B - INTERVIEW PREPARATION
+  13. How to introduce the project (30 seconds / 2 minutes)
+  14. Live demo script
+  15. Interview questions with answers
+  16. Key terms glossary
+  17. Tips
+
+
+################################################################################
+#                            PART A - THE PROJECT                              #
+################################################################################
+
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+DocChat is a full-stack web application that lets a user upload their own
+documents (PDF, Word, PowerPoint, Excel or text) and ask questions about them
+in plain English. Every answer is written only from the content of the
+uploaded document and shows the page numbers it came from.
+
+It uses a technique called Retrieval-Augmented Generation (RAG):
+
+  1. RETRIEVAL  - find the few passages of the document that are most
+                  relevant to the question (using embeddings + vector search)
+  2. AUGMENTED  - put those passages into the prompt sent to the AI model
+  3. GENERATION - the model (Google Gemini) writes the answer from them
+
+On top of question answering, DocChat also:
+  - summarises documents (overview, key takeaways, glossary)
+  - generates multiple-choice quizzes and viva (oral exam) questions
+  - draws a concept map of the main ideas and how they relate
+  - answers one question across several documents (workspaces)
+  - compares two documents
+  - supports voice input and read-aloud, PDF/Markdown export, light/dark themes
+
+Target users: students preparing for exams and vivas, and anyone who needs to
+find information quickly in long documents (notes, papers, manuals, reports).
+
+
+================================================================================
+2. PROBLEM STATEMENT AND OBJECTIVES
+================================================================================
+
+Problem
+-------
+- Searching long documents with Ctrl+F only works if you know the exact words.
+- General AI chatbots answer from what they learned in training, not from YOUR
+  document, and can confidently make things up ("hallucinate").
+- Pasting a whole document into a chatbot is slow, costly, hits length limits,
+  and gives no way to check where an answer came from.
+
+Objectives
+----------
+1. Let users upload documents in common formats and extract their text page by
+   page.
+2. Answer questions using only the relevant parts of the document, with page
+   citations so the user can verify the answer.
+3. Say clearly when the document does not contain the answer.
+4. Help students study: summaries, quizzes, viva questions, concept maps.
+5. Support questions across multiple documents.
+6. Keep each user's data private and secure.
+7. Stay responsive: stream answers and process uploads in the background.
+
+
+================================================================================
+3. MODULES AND FEATURES
+================================================================================
+
+ #  Module                  What it does
+ -- ----------------------  ---------------------------------------------------
+ 1  Authentication          Sign up / log in with email + password (bcrypt
+                            hashed). Optional Google sign-in (verified ID
+                            token). JWT session token valid for 7 days.
+
+ 2  Document upload &       Upload PDF, DOCX, PPTX, XLSX/XLS, TXT (max 20 MB).
+    processing              Text is extracted page-by-page, split into chunks,
+                            embedded with Gemini and stored in PostgreSQL.
+                            Status shown as Processing -> Ready / Failed, with
+                            Retry for failures.
+
+ 3  Document chat (RAG)     Ask questions about one document. Top 4 relevant
+                            chunks are retrieved; answer streams word by word
+                            and lists source pages with snippets. History is
+                            saved.
+
+ 4  Workspaces              Group documents; ask one question across all of
+                            them (top 6 chunks from any of the documents).
+                            The answer says which file each fact came from.
+
+ 5  Document comparison     Compare two documents: differences, common ground,
+                            or a comparison table.
+
+ 6  Summary                 Overview paragraph, key takeaways grouped by topic,
+                            glossary, estimated reading time and difficulty.
+                            Map-reduce for long documents. Cached in database.
+
+ 7  Quiz & Viva             MCQ quiz (3-15 questions, easy/medium/hard) with
+                            scoring and explanations; viva questions with
+                            model answers and key points. Saved with history.
+
+ 8  Concept map             Extracts 10-18 key concepts and the relationships
+                            between them; interactive graph (network/radial),
+                            export as SVG/PNG.
+
+ 9  Voice                   Speak a question (speech-to-text) and listen to
+                            answers (text-to-speech) using the browser's Web
+                            Speech API.
+
+10  Export                  Chat to PDF / Markdown; complete study guide PDF.
+
+11  Usage / Analytics       Questions asked, documents/pages/chunks indexed,
+                            quiz performance, daily activity chart, average
+                            model latency, storage used.
+
+12  Theme                   Light, dark, or follow the system.
+
+
+================================================================================
+4. TECHNOLOGY STACK (AND WHY EACH WAS CHOSEN)
+================================================================================
+
+FRONTEND
+--------
+ Technology              Purpose                        Why
+ ----------------------  -----------------------------  -----------------------
+ React 19                UI components, state           Component-based, large
+                                                        ecosystem, industry
+                                                        standard
+ Vite 8                  Dev server + build tool        Very fast hot reload
+                                                        and builds
+ React Router 7          Page navigation (SPA)          Standard router for
+                                                        React
+ Tailwind CSS 4          Styling                        Utility classes; theme
+                                                        (colours, fonts)
+                                                        defined in one place
+ Axios                   HTTP requests                  Interceptors add the
+                                                        JWT automatically and
+                                                        handle 401 logouts
+ Fetch + ReadableStream  Reading streamed answers       Axios cannot read a
+                                                        response progressively
+                                                        in the browser
+ Lucide React            Icons                          Lightweight icon set
+ jsPDF + autotable       PDF export                     Generates PDFs in the
+                                                        browser
+ Web Speech API          Voice input and read-aloud     Built into browsers,
+                                                        no extra service
+ Canvas 2D               Concept map drawing            Custom force-directed
+                                                        layout, smooth for
+                                                        small graphs
+
+BACKEND
+-------
+ Technology              Purpose                        Why
+ ----------------------  -----------------------------  -----------------------
+ Node.js + Express 5     REST API server                JavaScript on both
+                                                        ends; simple, mature
+ PostgreSQL              Main database                  Reliable relational DB,
+                                                        JSONB support, free
+                                                        cloud hosting
+ pgvector (extension)    Stores embeddings, similarity  Vectors live with the
+                         search                         rest of the data; one
+                                                        query filters + ranks
+ pg (node-postgres)      DB driver, connection pool     Standard Postgres
+                                                        client for Node
+ @google/genai           Gemini SDK                     Embeddings + text
+                                                        generation + streaming
+ Multer                  File uploads                   Handles multipart form
+                                                        data, size/type limits
+ pdf-parse               PDF text extraction            Gives text per page
+ mammoth                 DOCX text extraction           Reliable Word reader
+ xlsx (SheetJS)          Excel text extraction          Each sheet -> text
+ JSZip                   PPTX text extraction           PPTX is a ZIP of XML;
+                                                        read slide text
+ bcryptjs                Password hashing               Slow, salted hash -
+                                                        safe password storage
+ jsonwebtoken            JWT tokens                     Stateless sessions
+ google-auth-library     Verify Google sign-in tokens   Official verification
+ cors, dotenv            CORS policy, env config        Standard
+
+AI MODELS (Google Gemini)
+-------------------------
+ gemini-embedding-001    Text -> 3072-dimensional vector (embedding)
+ Gemini Flash models     Answers, summaries, quizzes, concept maps.
+                         Fallback order (configurable): gemini-3.6-flash,
+                         gemini-3.5-flash-lite, gemini-3.8-flash,
+                         gemini-3.1-flash-lite, gemini-2.5-flash
+
+DEPLOYMENT (suggested free setup)
+---------------------------------
+ Neon (PostgreSQL + pgvector)  |  Render (backend)  |  Vercel (frontend)
+
+
+================================================================================
+5. SYSTEM ARCHITECTURE
+================================================================================
+
+Three-tier architecture: presentation (React), application (Express),
+data (PostgreSQL), plus an external AI service (Gemini).
+
+ +---------------------------+
+ |        USER (Browser)     |
+ |  React SPA (Vite build)   |
+ |  - pages, components      |
+ |  - axios + JWT            |
+ |  - SSE reader (streaming) |
+ +-------------+-------------+
+               |  HTTPS: REST/JSON, multipart upload,
+               |         Server-Sent Events for streamed answers
+               v
+ +-------------------------------------------------------------+
+ |                  NODE.JS / EXPRESS API                      |
+ |                                                             |
+ |  Middleware: CORS -> JSON parser -> requireAuth (JWT)       |
+ |              -> UUID param validation -> routes             |
+ |              -> central error handler                       |
+ |                                                             |
+ |  Routes:  /auth  /documents  /chats  /workspaces            |
+ |           /summaries  /quiz  /graphs  /analytics            |
+ |                                                             |
+ |  Services:                                                  |
+ |   documentService (extract) -> chunkService (split)         |
+ |   embeddingService (Gemini embeddings, batching, retry)     |
+ |   vectorStore (pgvector insert/search)                      |
+ |   geminiClient (model fallback, thinking level, streaming)  |
+ |   llmService / workspaceService / summaryService /          |
+ |   quizService / graphService / analyticsService             |
+ +----------+-------------------------+-----------------+------+
+            |                         |                 |
+            | SQL (pg pool)           | HTTPS           | file system
+            v                         v                 v
+ +-----------------------+  +--------------------+  +----------------+
+ | PostgreSQL + pgvector |  | Google Gemini API  |  | uploads/       |
+ | users, documents,     |  | - embeddings       |  | original files |
+ | chunks (+embedding),  |  | - text generation  |  +----------------+
+ | chats, messages,      |  |   (streaming)      |
+ | quizzes, summaries,   |  +--------------------+
+ | graphs, workspaces... |
+ +-----------------------+
+
+Request lifecycle (example: asking a question)
+  Browser -> POST /chats/:id/message/stream with "Authorization: Bearer <JWT>"
+  -> requireAuth verifies the JWT, sets req.userId
+  -> uuidParams checks :id is a valid UUID
+  -> route checks the document belongs to req.userId and is ready
+  -> embed question (Gemini) -> vector search (Postgres) -> stream answer
+     (Gemini) -> save to chat history -> close stream
+
+
+================================================================================
+6. DATA FLOW DIAGRAMS
+================================================================================
+
+6.1 DFD LEVEL 0 (Context diagram)
+---------------------------------
+
+                     documents, questions,
+                     quiz answers, login
+        +--------+  ------------------------>  +-------------------+
+        |  USER  |                             |                   |
+        |        |  <------------------------  |     DocChat       |
+        +--------+   answers + page citations, |     System        |
+                     summaries, quizzes,       |                   |
+                     scores, concept maps      +---------+---------+
+                                                         |   ^
+                                    text chunks, prompts |   | embeddings,
+                                                         v   | generated text
+                                               +-------------------+
+                                               |  Google Gemini    |
+                                               |  (external AI)    |
+                                               +-------------------+
+
+6.2 DFD LEVEL 1
+---------------
+
+ USER
+  |
+  | credentials                         +-------------+
+  +-----------------------------------> | 1.0 Manage  |----> [D1 users]
+  |               JWT token  <----------|  Accounts   |<---- [D1 users]
+  |                                     +-------------+
+  |
+  | file                                +-------------+      +--------+
+  +-----------------------------------> | 2.0 Process |----->| Gemini |
+  |          upload status <------------|  Document   |<-----| embed  |
+  |                                     +------+------+      +--------+
+  |                                            | text + vectors
+  |                                            v
+  |                               [D2 documents] [D3 chunks (+embedding)]
+  |                                            |
+  | question                            +------+------+      +--------+
+  +-----------------------------------> | 3.0 Answer  |----->| Gemini |
+  |  streamed answer + sources <--------|  Question   |<-----|generate|
+  |                                     +------+------+      +--------+
+  |                                            |
+  |                                            v
+  |                                  [D4 chats / messages]
+  |
+  | "summarise" / "quiz" / "map"        +-------------+      +--------+
+  +-----------------------------------> | 4.0 Generate|----->| Gemini |
+  |  summary / quiz / graph <-----------| Study Aids  |<-----|        |
+  |                                     +------+------+      +--------+
+  |                                            |  reads [D3 chunks]
+  |                                            v
+  |                     [D5 summaries] [D6 quizzes] [D7 knowledge graphs]
+  |
+  | quiz answers                        +-------------+
+  +-----------------------------------> | 5.0 Score   |----> [D6 quizzes]
+  |          score + explanations <-----|  Quiz       |
+  |                                     +-------------+
+  |
+  | workspace + question                +-------------+
+  +-----------------------------------> | 6.0 Cross-  |---> Gemini
+  |   synthesised answer <--------------| Document Q&A|<--- [D3 chunks]
+  |                                     +-------------+---> [D8 workspace
+  |                                                          tables]
+  | "usage"                             +-------------+
+  +-----------------------------------> | 7.0 Report  |<--- all stores
+             charts + numbers <---------|  Analytics  |
+                                        +-------------+
+
+ Data stores: D1 users, D2 documents, D3 chunks, D4 chats + messages,
+ D5 document_summaries, D6 quizzes, D7 document_knowledge_graphs,
+ D8 workspaces + workspace_documents + workspace_chats + workspace_messages
+
+6.3 FLOW: UPLOADING AND PROCESSING A DOCUMENT (ingestion pipeline)
+------------------------------------------------------------------
+
+ User selects file
+        |
+        v
+ [Frontend] check extension (.pdf .docx .pptx .xlsx .xls .txt) and size <= 20 MB
+        |
+        v
+ POST /documents/upload (multipart/form-data, JWT)
+        |
+        v
+ [Multer] validate extension, save file as uploads/<random-uuid>.<ext>
+        |
+        v
+ INSERT INTO documents (status = 'processing')
+        |
+        v
+ Respond 202 Accepted  -------> frontend shows "Processing", polls every 3 s
+        |
+        |  (background, request already finished)
+        v
+ EXTRACT text page by page
+   PDF  -> pdf-parse  (one entry per page)
+   DOCX -> mammoth    (one "page")
+   XLSX -> SheetJS    (one "page" per sheet)
+   PPTX -> JSZip      (one "page" per slide, reads <a:t> text runs)
+   TXT  -> read file  (one "page")
+        |
+        v
+ CHUNK each page: 2000 characters, 200-character overlap
+        |               (no chunk crosses a page boundary)
+        v
+ EMBED chunks with gemini-embedding-001
+   - batches of 25 texts per API call
+   - retry with back-off on 429 (rate limit) / 503 (busy)
+   - result: one 3072-number vector per chunk
+        |
+        v
+ INSERT INTO chunks (id, document_id, chunk_index, page_number,
+                     chunk_text, embedding)       -- one transaction,
+                                                  -- 100 rows per INSERT
+        |
+        v
+ UPDATE documents SET status = 'ready', page_count, chunk_count
+   (on any error: status = 'failed', error_message = readable reason)
+
+6.4 FLOW: ASKING A QUESTION (retrieval + generation)
+----------------------------------------------------
+
+ "Where does the Calvin cycle take place?"
+        |
+        v
+ POST /chats/:documentId/message/stream
+        |
+        v
+ Verify JWT -> document belongs to user? -> status = ready?
+        |                                    (else 404 / 400)
+        v
+ Embed the question -> 3072-number vector q
+        |
+        v
+ SQL: among this document's chunks, order by cosine distance to q, LIMIT 4
+        |
+        v
+ Send SSE event "sources" (page numbers + snippets + scores)
+        |
+        v
+ Build prompt:
+   "You are a helpful assistant answering questions about a document.
+    Use ONLY the context below... If the answer is not present, say
+    'I don't have enough information in this document to answer that.'
+    Context: [Chunk 1 - Page 2] ... [Chunk 4 - Page 1] ...
+    Question: ...  Answer:"
+        |
+        v
+ Gemini generateContentStream (thinking set low, model fallback)
+        |
+        +--> each piece of text -> SSE event "delta" -> shown immediately
+        |
+        v
+ Save question + full answer + sources to messages table
+        |
+        v
+ SSE event "done"  -> frontend shows the source list and Read Aloud
+
+6.5 FLOW: SUMMARY (map-reduce for long documents)
+-------------------------------------------------
+
+ Load all chunks of the document
+        |
+        +-- 15 chunks or fewer --> one call: whole text -> JSON summary
+        |
+        +-- more than 15 chunks
+               |
+               v
+          MAP: split into groups of 8 chunks
+               summarise each group (4 groups at a time, in parallel)
+               |
+               v
+          REDUCE: combine the section summaries -> one call -> JSON:
+               { executiveSummary, difficulty, keyTakeaways[], glossary[] }
+        |
+        v
+ reading time = total words / 200 (minutes)
+        |
+        v
+ Save in document_summaries (cached: next open is instant;
+ "Regenerate" forces a new one)
+
+6.6 FLOW: QUIZ
+--------------
+
+ Choose type (MCQ / viva), difficulty, number of questions
+        |
+        v
+ Sample up to 15 chunks evenly from start to end of the document
+        |
+        v
+ Prompt Gemini for JSON (responseMimeType = application/json)
+        |
+        v
+ Parse safely (strip ``` fences, accept {questions:[...]} or [...]),
+ validate: question text, >= 2 options, correctAnswer is a valid index
+        |
+        v
+ Save to quizzes (questions as JSONB) -> show one question at a time
+        |
+        v
+ Submit -> server compares answers with correctAnswer -> score saved
+
+6.7 FLOW: AUTHENTICATION
+------------------------
+
+ SIGN UP:  email lower-cased -> duplicate check -> bcrypt.hash(password, 10)
+           -> INSERT users
+ LOG IN:   find user by email -> bcrypt.compare -> jwt.sign({userId}, secret,
+           7 days) -> token stored in sessionStorage
+ GOOGLE:   Google button gives an ID token -> backend verifies it with
+           google-auth-library against GOOGLE_CLIENT_ID -> find or create
+           user -> issue JWT
+ EVERY REQUEST: axios adds "Authorization: Bearer <token>" -> requireAuth
+           verifies signature + expiry -> req.userId -> every SQL query is
+           filtered by user_id. 401 -> frontend logs out.
+
+
+================================================================================
+7. DATABASE DESIGN
+================================================================================
+
+DBMS: PostgreSQL with the pgvector extension.
+Primary keys are UUIDs (generated in Node with uuid v4).
+Tables are created automatically at server start (backend/src/db/db.js).
+
+7.1 ENTITY-RELATIONSHIP OVERVIEW
+--------------------------------
+
+                         +---------+
+                         |  users  |
+                         +----+----+
+               1              |               1
+        +---------------------+-----------------------+
+        | N                                           | N
+  +-----+------+                               +------+------+
+  | documents  |                               | workspaces  |
+  +-----+------+                               +------+------+
+        | 1                                           | 1
+        |                 N +---------------------+ N |
+        +------------------>| workspace_documents |<--+   (many-to-many)
+        |                   +---------------------+   |
+        | 1 : N                                       | 1 : N
+        +--> chunks (text + embedding)                +--> workspace_chats
+        +--> chats --1:N--> messages                         | 1 : N
+        +--> quizzes                                         +--> workspace_messages
+        +--> document_summaries
+        +--> document_knowledge_graphs
+
+All child rows are deleted automatically when their parent is deleted
+(ON DELETE CASCADE).
+
+7.2 TABLES
+----------
+
+TABLE: users                         - registered accounts
+ Column          Type        Constraints / notes
+ --------------  ----------  ---------------------------------------------
+ id              UUID        PRIMARY KEY
+ first_name      TEXT        NOT NULL
+ last_name       TEXT        NOT NULL
+ email           TEXT        UNIQUE, NOT NULL (stored lower-case)
+ password_hash   TEXT        bcrypt hash; NULL for Google-only accounts
+ auth_provider   TEXT        'local' or 'google' (default 'local')
+ google_id       TEXT        Google account id (sub)
+ avatar_url      TEXT        profile picture from Google
+ created_at      TIMESTAMP   DEFAULT CURRENT_TIMESTAMP
+
+TABLE: documents                     - one row per uploaded file
+ Column          Type        Constraints / notes
+ --------------  ----------  ---------------------------------------------
+ id              UUID        PRIMARY KEY
+ user_id         UUID        FK -> users(id) ON DELETE CASCADE, NOT NULL
+ filename        TEXT        original file name (shown to user)
+ file_path       TEXT        where the original is stored on disk
+ status          TEXT        'processing' | 'ready' | 'failed'
+ page_count      INTEGER     pages / slides / sheets
+ chunk_count     INTEGER     number of chunks created
+ error_message   TEXT        readable reason when failed
+ created_at      TIMESTAMP   DEFAULT CURRENT_TIMESTAMP
+
+TABLE: chunks                        - passages of text + their embeddings
+ Column          Type          Constraints / notes
+ --------------  ------------  -------------------------------------------
+ id              UUID          PRIMARY KEY
+ document_id     UUID          FK -> documents(id) ON DELETE CASCADE
+ chunk_index     INTEGER       position in the document (0, 1, 2 ...)
+ page_number     INTEGER       page the chunk came from (for citations)
+ chunk_text      TEXT          the passage (~2000 characters)
+ embedding       VECTOR(3072)  pgvector column: Gemini embedding of the
+                               passage
+
+TABLE: chats                         - one chat per (user, document)
+ id UUID PK | user_id UUID FK -> users | document_id UUID FK -> documents |
+ created_at TIMESTAMP
+
+TABLE: messages                      - chat history
+ Column          Type        Constraints / notes
+ --------------  ----------  ---------------------------------------------
+ id              UUID        PRIMARY KEY
+ chat_id         UUID        FK -> chats(id) ON DELETE CASCADE
+ role            TEXT        CHECK (role IN ('user','assistant'))
+ content         TEXT        question or answer
+ sources         TEXT        JSON list: [{pageNumber, snippet,
+                             relevanceScore}] (assistant messages)
+ created_at      TIMESTAMP
+
+TABLE: quizzes
+ Column          Type        Constraints / notes
+ --------------  ----------  ---------------------------------------------
+ id              UUID        PRIMARY KEY
+ document_id     UUID        FK -> documents ON DELETE CASCADE
+ user_id         UUID        FK -> users ON DELETE CASCADE
+ quiz_type       TEXT        CHECK (quiz_type IN ('mcq','viva'))
+ title           TEXT        e.g. "notes.pdf - MCQ (MEDIUM)"
+ difficulty      TEXT        easy | medium | hard
+ questions       JSONB       MCQ: {id, question, options[4], correctAnswer,
+                             explanation, pageNumber}
+                             Viva: {id, question, modelAnswer, keyPoints[],
+                             pageNumber}
+ user_answers    JSONB       answers submitted
+ score           INTEGER     number correct
+ total_questions INTEGER     NOT NULL
+ completed       BOOLEAN     DEFAULT false
+ created_at      TIMESTAMP
+
+TABLE: document_summaries            - cached summaries
+ id UUID PK | document_id FK | user_id FK | executive_summary TEXT |
+ key_takeaways JSONB [{topic, points[]}] | glossary JSONB [{term,
+ definition}] | reading_time INTEGER (minutes) | difficulty TEXT |
+ created_at TIMESTAMP
+
+TABLE: document_knowledge_graphs     - cached concept maps
+ id UUID PK | document_id FK | user_id FK | central_topic TEXT |
+ summary TEXT | nodes JSONB [{id, label, category, description, page,
+ importance}] | edges JSONB [{source, target, relation}] | created_at
+
+TABLE: workspaces
+ id UUID PK | user_id FK | name TEXT NOT NULL | description TEXT |
+ created_at
+
+TABLE: workspace_documents           - many-to-many link
+ workspace_id UUID FK -> workspaces | document_id UUID FK -> documents |
+ added_at TIMESTAMP | PRIMARY KEY (workspace_id, document_id)
+
+TABLE: workspace_chats
+ id UUID PK | workspace_id FK | user_id FK | title TEXT | created_at
+
+TABLE: workspace_messages
+ id UUID PK | chat_id FK -> workspace_chats | role TEXT CHECK (user /
+ assistant) | content TEXT | sources TEXT (JSON, includes filename) |
+ created_at
+
+7.3 INDEXES
+-----------
+ idx_chunks_document        chunks(document_id, chunk_index)
+                            -> vector search filters by document first;
+                               also reading a document's text in order
+ idx_documents_user         documents(user_id, created_at DESC)
+                            -> dashboard list
+ idx_quizzes_doc_user       quizzes(document_id, user_id)
+ idx_summaries_doc_user     document_summaries(document_id, user_id)
+ idx_graph_doc_user         document_knowledge_graphs(document_id, user_id)
+ idx_workspaces_user        workspaces(user_id)
+ idx_workspace_docs_ws      workspace_documents(workspace_id)
+ idx_workspace_chats_ws     workspace_chats(workspace_id)
+ idx_workspace_messages_chat workspace_messages(chat_id)
+ + automatic indexes for every PRIMARY KEY and the UNIQUE email
+
+7.4 THE VECTOR SEARCH QUERY
+---------------------------
+
+ WITH candidates AS MATERIALIZED (
+   SELECT id, document_id, page_number, chunk_text, embedding
+   FROM chunks
+   WHERE document_id = ANY($2::uuid[]) AND embedding IS NOT NULL
+ )
+ SELECT id, document_id, page_number, chunk_text,
+        1 - (embedding <=> $1::vector) AS score
+ FROM candidates
+ ORDER BY embedding <=> $1::vector
+ LIMIT $3;
+
+ $1 = question embedding, $2 = document id(s), $3 = how many (4 or 6)
+ <=>  is pgvector's cosine DISTANCE operator (0 = same direction)
+ score = 1 - distance = cosine SIMILARITY (higher = more relevant)
+
+ Why "filter first, then exact search" (MATERIALIZED makes Postgres do the
+ filter step first): a user's documents have at most a few thousand chunks,
+ so exact ranking takes milliseconds and is always correct. An approximate
+ index (HNSW / IVFFlat) is useful for millions of rows, but combined with a
+ WHERE filter it can return fewer results than asked on older pgvector
+ versions. Also, HNSW indexes on the plain vector type support up to 2000
+ dimensions and our embeddings have 3072.
+
+7.5 NORMALISATION
+-----------------
+ - Each fact stored once: user details only in users; document metadata only
+   in documents; chunks reference documents by id.
+ - Many-to-many (workspaces <-> documents) uses a separate link table with a
+   composite primary key -> no duplicate links.
+ - Repeating groups that are always read together and never queried
+   individually (quiz questions, glossary, graph nodes) are stored as JSONB.
+   This is a deliberate denormalisation: simpler code, one read per quiz.
+
+
+================================================================================
+8. KEY ALGORITHMS AND CONCEPTS
+================================================================================
+
+8.1 CHUNKING
+------------
+ Why: a whole document is too long to send with every question, and
+ embeddings work best on focused passages.
+ How: for each page, take 2000 characters, then move forward by 1800 so
+ consecutive chunks share 200 characters (overlap).
+
+   page text:  |-------- chunk 1 (0-2000) --------|
+                                       |-------- chunk 2 (1800-3800) ------|
+                                       <-200->
+                                       overlap
+
+ The overlap means a sentence cut at a boundary is still complete in one of
+ the chunks. Chunks never cross pages, so each has one page number.
+ (2000 chars is roughly 500 tokens: 1 token ~ 4 characters of English.)
+
+8.2 EMBEDDINGS
+--------------
+ An embedding model turns text into a list of numbers (a vector) such that
+ texts with similar MEANING get vectors pointing in similar directions.
+ gemini-embedding-001 produces 3072 numbers per text.
+   "Where does the Calvin cycle happen?"   and
+   "The Calvin cycle takes place in the stroma"
+ get similar vectors even though they share few exact words.
+ This is what makes "semantic search" better than keyword search.
+
+8.3 COSINE SIMILARITY
+---------------------
+ Measures the angle between two vectors A and B:
+
+                        A . B            sum(Ai * Bi)
+   cos(theta) = ----------------- = ------------------------------
+                  |A| x |B|        sqrt(sum Ai^2) x sqrt(sum Bi^2)
+
+   1  -> same direction (very similar meaning)
+   0  -> unrelated
+  -1  -> opposite
+ Small example: A = (1, 2), B = (2, 4)  -> cos = 10 / (2.236 x 4.472) = 1.0
+                A = (1, 0), B = (0, 1)  -> cos = 0
+ pgvector's <=> returns cosine distance = 1 - cosine similarity.
+ Cosine ignores vector length, which is what we want for comparing meaning.
+
+8.4 RETRIEVAL-AUGMENTED GENERATION (RAG)
+----------------------------------------
+ 1. Embed the question.
+ 2. Retrieve top-k similar chunks (k = 4 for one document, 6 for workspaces).
+ 3. Build a prompt with strict instructions + those chunks + the question.
+ 4. The model answers from the given context only; if the answer isn't in it,
+    it must say so.
+ Benefits: answers are grounded in the user's document, cite pages, work on
+ documents of any length, and cost less than sending the whole document.
+
+8.5 PROMPT DESIGN (how hallucination is reduced)
+------------------------------------------------
+ - "Use ONLY the context below. Do not use outside knowledge."
+ - An exact fallback sentence for when the answer is missing.
+ - Context passages are labelled with page numbers.
+ - For structured outputs (quiz, summary, graph) we request JSON
+   (responseMimeType: application/json), then validate it.
+
+8.6 MAP-REDUCE SUMMARISATION
+----------------------------
+ Long documents don't fit in one prompt. MAP: summarise groups of 8 chunks
+ (4 in parallel). REDUCE: summarise the summaries into the final structured
+ summary.
+
+8.7 EVEN SAMPLING FOR QUIZZES AND CONCEPT MAPS
+----------------------------------------------
+ Instead of the first 15 chunks, take 15 spread evenly from start to end:
+ index_i = round(i x (n - 1) / 14) for i = 0..14. Questions cover the
+ whole document.
+
+8.8 MODEL FALLBACK AND RETRIES
+------------------------------
+ Gemini calls try models in order. On 503 (overloaded) or 429 (rate limit)
+ the same model is retried once after 800 ms, then the next model is used.
+ A model that returns 404 (doesn't exist) is skipped for the rest of the
+ session. Embedding calls retry with increasing waits.
+
+8.9 STREAMING (Server-Sent Events)
+----------------------------------
+ The server keeps the HTTP response open and writes events:
+   event: sources   data: [{pageNumber, snippet, relevanceScore}, ...]
+   event: delta     data: {"text": "The Calvin cycle "}
+   event: delta     data: {"text": "takes place in the stroma..."}
+   event: done      data: {"answer": "<full text>"}
+ The browser reads the stream with fetch() and a ReadableStream and adds
+ each piece to the message. First words appear as soon as the model writes
+ them instead of after the whole answer.
+
+8.10 "THINKING" LEVEL
+---------------------
+ Gemini 3 models can reason internally before answering. Useful for hard
+ problems, but for answering from given passages it mostly adds delay, so
+ the app sets the lowest level each model allows (MINIMAL / LOW, or a
+ thinking budget of 0 for Gemini 2.5).
+
+
+================================================================================
+9. API REFERENCE
+================================================================================
+
+All routes except /auth/* and /health require: Authorization: Bearer <JWT>
+
+ Method  Route                                 Purpose
+ ------  ------------------------------------  --------------------------------
+ POST    /auth/signup                          create account
+ POST    /auth/login                           log in -> {token, user}
+ POST    /auth/google                          Google sign-in (ID token)
+ POST    /documents/upload                     upload file (202, background)
+ GET     /documents                            list my documents
+ GET     /documents/:id/content                extracted text by page
+ POST    /documents/:id/retry                  re-process a failed document
+ DELETE  /documents/:id                        delete document + all data
+ POST    /chats/:documentId/message            ask (JSON answer)
+ POST    /chats/:documentId/message/stream     ask (streamed, SSE)
+ GET     /chats/:documentId/history            chat history
+ GET     /summaries/:documentId                cached summary
+ POST    /summaries/:documentId                generate ({force:true} = redo)
+ DELETE  /summaries/:documentId                clear cached summary
+ POST    /quiz/generate/:documentId            {type, count, difficulty}
+ GET     /quiz/document/:documentId            quizzes for a document
+ GET     /quiz/:quizId                         one quiz
+ POST    /quiz/:quizId/submit                  {userAnswers} -> score
+ DELETE  /quiz/:quizId                         delete quiz
+ GET     /graphs/:documentId                   cached concept map
+ POST    /graphs/:documentId/generate          generate concept map
+ DELETE  /graphs/:documentId                   clear concept map
+ GET     /workspaces                           list workspaces
+ POST    /workspaces                           create {name, description,
+                                               documentIds}
+ GET     /workspaces/:id                       details + documents
+ PUT     /workspaces/:id                       rename / describe
+ DELETE  /workspaces/:id                       delete
+ POST    /workspaces/:id/documents             set attached documents
+ POST    /workspaces/:id/message[/stream]      ask across documents
+ GET     /workspaces/:id/history               workspace chat history
+ POST    /workspaces/:id/compare               {docAId, docBId,
+                                               comparisonType}
+ GET     /analytics/all?days=7                 usage page data
+ GET     /health                               health check
+
+ Status codes used: 200 OK, 201 Created, 202 Accepted (upload), 400 bad
+ input, 401 not logged in / bad token, 404 not found (or not yours),
+ 409 email already registered, 500 server error, 503 Google sign-in not
+ configured.
+
+
+================================================================================
+10. SECURITY
+================================================================================
+
+ Threat / risk                     Protection in DocChat
+ --------------------------------  --------------------------------------------
+ Stolen passwords from DB          bcrypt hashing with salt (cost 10); plain
+                                   passwords never stored
+ Fake login / session forging      JWT signed with server secret, 7-day
+                                   expiry; verified on every request
+ Fake Google login                 Google ID token verified with Google's
+                                   library against our client ID; no
+                                   "email only" login
+ Seeing other users' data          Every query filters by user_id from the
+                                   token; other users' ids return 404
+ SQL injection                     Only parameterised queries ($1, $2 ...)
+ Bad ids crashing queries          UUID format validated before DB access
+ Malicious upload names / types    Allowed extensions only, 20 MB limit,
+                                   stored under random UUID file names
+ XSS from AI output                Answers rendered as React elements by our
+                                   own Markdown renderer (no raw HTML)
+ Other websites calling the API    CORS restricted to the frontend origin
+ Secrets in code                   Keys and secrets only in .env (git-ignored)
+
+
+================================================================================
+11. FOLDER STRUCTURE (WHAT EACH FILE DOES)
+================================================================================
+
+ backend/
+   server.js                     creates Express app, middleware, routes,
+                                 central error handler, starts server after
+                                 DB init
+   scripts/reindex.js            npm run reindex: embed chunks missing vectors
+   src/db/db.js                  connection pool, creates tables, enables
+                                 pgvector, indexes
+   src/middleware/auth.js        requireAuth: verifies JWT -> req.userId
+   src/middleware/validate.js    rejects non-UUID route params
+   src/routes/auth.js            signup, login, Google sign-in
+   src/routes/documents.js       upload, list, content, retry, delete,
+                                 background processing pipeline
+   src/routes/chat.js            single-document Q&A (JSON + streaming)
+   src/routes/workspaces.js      workspaces CRUD, cross-doc Q&A, compare
+   src/routes/summaries.js       summary get/generate/delete
+   src/routes/quiz.js            quiz generate/list/get/submit/delete
+   src/routes/graphs.js          concept map get/generate/delete
+   src/routes/analytics.js       usage data
+   src/services/documentService.js   text extraction per file type
+   src/services/chunkService.js      chunking with overlap
+   src/services/embeddingService.js  Gemini embeddings, batching, retries
+   src/services/vectorStore.js       pgvector insert, search, stats,
+                                     legacy import
+   src/services/geminiClient.js      model fallback, thinking level,
+                                     streaming
+   src/services/llmService.js        document Q&A prompt
+   src/services/workspaceService.js  multi-document prompt, comparison
+   src/services/summaryService.js    summaries, map-reduce
+   src/services/quizService.js       MCQ / viva generation + validation
+   src/services/graphService.js      concept map extraction
+   src/services/analyticsService.js  usage numbers
+   src/services/jsonUtils.js         safe JSON parsing of model output
+   src/services/sse.js               Server-Sent Events helper
+
+ frontend/
+   src/main.jsx, App.jsx         entry point, routes
+   src/index.css                 Tailwind theme: colours, fonts, Markdown
+   src/api/client.js             axios instance with JWT
+   src/api/stream.js             reads streamed answers
+   src/context/AuthContext.jsx   logged-in user, login/logout
+   src/context/ThemeContext.jsx  light/dark/system
+   src/hooks/useVoiceAssistant.js speech-to-text, text-to-speech
+   src/components/               Markdown renderer, SummaryModal, voice
+                                 buttons, Google button, layout, logo
+   src/pages/                    Login, Signup, Dashboard, Chat, Quiz,
+                                 KnowledgeGraph, Workspaces,
+                                 WorkspaceDetail, Analytics
+   src/utils/exportUtils.js      PDF and Markdown export
+
+
+================================================================================
+12. TESTING, LIMITATIONS AND FUTURE SCOPE
+================================================================================
+
+Testing done
+------------
+ - End-to-end API tests (60 checks): sign-up/login (incl. case-insensitive
+   email, wrong password, forged Google login rejected), upload of each file
+   type, empty and unsupported files, document preview, chat answers and
+   history, streaming events, summaries, MCQ + viva generation and scoring,
+   concept map (dangling edges removed), workspaces (create, chat, compare,
+   rename, delete), analytics, cross-user isolation (another user cannot read
+   or chat with my documents), retry and delete.
+ - Browser tests (Playwright) of every page in light and dark mode with zero
+   console errors.
+ - Migration test: data created with the old JSON-file vector store moved
+   into pgvector with identical search results.
+ - Performance comparison (with a simulated model, to compare code paths)
+   of time-to-first-words and long-document summaries before/after
+   streaming, lower thinking and parallel summaries.
+
+Limitations
+-----------
+ - Scanned PDFs (images) have no extractable text (no OCR yet).
+ - If the right passage is not in the top 4, the answer says it doesn't know.
+ - Free hosting: server sleeps when idle; uploaded originals are lost on
+   restart (text + embeddings are safe in PostgreSQL).
+ - Depends on Gemini availability and the API key's quota.
+
+Future scope
+------------
+ - OCR for scanned documents
+ - Hybrid search (keyword BM25 + vectors) and re-ranking for better retrieval
+ - Evaluation set to measure answer accuracy automatically
+ - HNSW index (with halfvec) for very large collections
+ - Object storage (S3 / Cloudinary) for original files
+ - Rate limiting per user; sharing workspaces between users
+ - Follow-up questions that use previous chat turns as context
+
+
+################################################################################
+#                       PART B - INTERVIEW PREPARATION                         #
+################################################################################
+
+
+================================================================================
+13. HOW TO INTRODUCE THE PROJECT
+================================================================================
+
+30-SECOND VERSION
+-----------------
+ "My project is DocChat, a RAG-based document Q&A app. You upload a PDF,
+  Word file or slides, and ask questions in plain English. Instead of the AI
+  answering from general knowledge, it first finds the most relevant
+  passages of your document using embeddings and vector search in
+  PostgreSQL with pgvector, then Google Gemini writes the answer only from
+  those passages and shows the page numbers. I built it with React, Node.js
+  and Express. It also generates summaries, quizzes and viva questions for
+  exam preparation."
+
+2-MINUTE VERSION
+----------------
+ 1. PROBLEM: "Students and professionals deal with long documents. Ctrl+F
+    needs exact words, and normal chatbots don't know your document and can
+    make things up."
+ 2. SOLUTION: "DocChat uses Retrieval-Augmented Generation. When you upload
+    a file, the backend extracts text page by page, splits it into
+    overlapping chunks of about 2,000 characters, converts each chunk into
+    a 3,072-dimension embedding with Gemini, and stores text and vector in
+    PostgreSQL with pgvector."
+ 3. QUESTION FLOW: "When you ask a question, I embed the question, run a
+    cosine-similarity search over that document's chunks, take the top 4,
+    and send them with strict instructions to Gemini: answer only from this
+    context, otherwise say you don't know. The answer streams back word by
+    word over Server-Sent Events with page citations."
+ 4. EXTRA FEATURES: "Workspaces to ask across several documents,
+    map-reduce summaries for long documents, MCQ and viva generation with
+    JSON validation, a concept map, voice input and PDF export."
+ 5. ENGINEERING: "JWT auth with bcrypt, verified Google sign-in, every
+    query scoped to the user, background processing, model fallback when
+    Gemini is busy, and tests covering the full flow."
+ 6. LEARNING: "I learned how embeddings and vector search work, prompt
+    design to reduce hallucination, streaming responses, and designing a
+    schema that keeps vectors next to the data they belong to."
+
+
+================================================================================
+14. LIVE DEMO SCRIPT (about 3 minutes)
+================================================================================
+
+ Prepare: a short PDF of your own notes (3-10 pages) already uploaded, plus
+ one more file. Open the deployed site a minute early (free server wakes up).
+
+ 1. Log in. "Accounts use bcrypt-hashed passwords and JWT tokens."
+ 2. Dashboard: upload a second file. "Upload returns immediately; text
+    extraction, chunking and embedding run in the background - see the
+    status change to Ready."
+ 3. Open the PDF -> ask a question whose answer is on a specific page.
+    "Notice the answer streams in, and the sources show page numbers and
+    the exact passages used."
+ 4. Ask something NOT in the document. "It says it doesn't have enough
+    information - that's the anti-hallucination instruction working."
+ 5. Click Summary. "Long documents use map-reduce summarisation."
+ 6. Quiz & Viva -> generate 5 MCQs, answer one. "The model returns JSON
+    which I validate before saving."
+ 7. Concept map (briefly).
+ 8. Workspace with two files -> ask a question spanning both. "Answers name
+    which file each fact came from."
+ 9. (Optional) Show the chunks table in the database: "each row is a
+    passage and its 3,072-number embedding."
+
+
+================================================================================
+15. INTERVIEW QUESTIONS WITH ANSWERS
+================================================================================
+
+--- RAG and AI concepts ---
+
+Q1. What is RAG?
+A.  Retrieval-Augmented Generation: before the language model answers, we
+    retrieve relevant information (here, passages from the user's document)
+    and include it in the prompt, so the answer is based on that
+    information instead of only the model's training data.
+
+Q2. Why not just send the whole document to Gemini?
+A.  Long documents may exceed the context limit, cost more, and are slower.
+    Retrieval sends only the ~4 most relevant passages (~8,000 characters)
+    regardless of document length, and lets me show exactly which passages
+    were used.
+
+Q3. What is an embedding?
+A.  A list of numbers representing the meaning of a piece of text. Texts
+    with similar meaning produce vectors pointing in similar directions. I
+    use gemini-embedding-001, which outputs 3,072 numbers.
+
+Q4. How do you find relevant chunks?
+A.  I embed the question with the same model, then use pgvector's cosine
+    distance operator (<=>) to rank that document's chunks and take the top
+    4 (top 6 in workspaces).
+
+Q5. What is cosine similarity and why use it?
+A.  The cosine of the angle between two vectors: dot product divided by
+    the product of their lengths. 1 means same direction. It compares
+    direction (meaning) and ignores length, which is standard for text
+    embeddings.
+
+Q6. Why chunk the text? Why 2,000 characters with 200 overlap?
+A.  Embeddings work best on focused passages, and we can only send a few
+    passages to the model. 2,000 characters (~500 tokens) holds a complete
+    idea; overlap keeps sentences that fall on a boundary complete in at
+    least one chunk. Chunks never cross pages, so citations are precise.
+
+Q7. How do you reduce hallucination?
+A.  (1) The prompt says to use ONLY the provided context and gives an exact
+    sentence to use when the answer isn't there. (2) Only relevant passages
+    are given. (3) Sources are shown so the user can verify. It reduces the
+    risk but can't make it zero - that's why citations matter.
+
+Q8. What if the answer is spread across many parts of the document?
+A.  Top-4 retrieval may miss some parts. Improvements: retrieve more chunks,
+    hybrid keyword + vector search, or re-ranking. For whole-document tasks
+    like summaries I don't use retrieval; I use map-reduce over all chunks.
+
+Q9. Explain map-reduce summarisation.
+A.  Map: summarise groups of 8 chunks separately (4 at a time in
+    parallel). Reduce: combine those section summaries into the final
+    overview, takeaways and glossary. It works for documents too long for
+    one prompt.
+
+Q10. How do you get reliable JSON for quizzes?
+A.   I request JSON output (responseMimeType: application/json), strip
+     markdown fences if present, accept either an array or an object
+     wrapping one, and validate each question (options exist, correct
+     answer index is valid) before saving.
+
+Q11. What is the "thinking" setting and why did you lower it?
+A.   Gemini 3 models can reason internally before answering. For answering
+     from given passages that mainly adds latency, so I set the lowest
+     thinking level each model allows. Together with streaming, this makes
+     the first words of an answer appear much sooner.
+
+Q12. What happens if Gemini is down or rate-limited?
+A.   The client retries the same model once on 503/429, then falls back to
+     the next model in a configurable list. Models that don't exist are
+     skipped. The user gets a readable error if all fail.
+
+--- Database and pgvector ---
+
+Q13. Why PostgreSQL + pgvector instead of Pinecone / ChromaDB?
+A.   Text, metadata, ownership and vectors are in the same row, so one SQL
+     query can filter by user/document and rank by similarity, and deleting
+     a document deletes its vectors via ON DELETE CASCADE in the same
+     transaction. One database to run and back up. A separate vector DB
+     makes sense at much larger scale.
+
+Q14. Did you use a vector index (HNSW / IVFFlat)?
+A.   No, deliberately. Search always filters to one user's documents first
+     (a few thousand rows at most), and exact cosine ranking over those
+     takes milliseconds and is always correct. Approximate indexes help with
+     millions of rows, but combined with a WHERE filter they can return
+     fewer than k results on older pgvector versions, and HNSW on the
+     vector type supports at most 2,000 dimensions while my embeddings
+     have 3,072. To scale, I'd use halfvec with an HNSW index and pgvector
+     0.8 iterative scans.
+
+Q15. Explain your schema.
+A.   users -> documents (1:N) -> chunks with embeddings (1:N). Each document
+     has chats -> messages, quizzes, a cached summary and a concept map.
+     Workspaces link to documents through a many-to-many table
+     workspace_documents with a composite primary key. All foreign keys
+     cascade on delete. UUID primary keys.
+
+Q16. Why UUIDs instead of auto-increment ids?
+A.   They can be generated in Node before inserting, aren't guessable
+     (users can't enumerate other ids), and are safe to expose in URLs.
+
+Q17. Why JSONB for quiz questions?
+A.   Questions are always read and written together with the quiz and never
+     queried individually, so a JSONB column is simpler than a separate
+     questions table. It's a deliberate denormalisation.
+
+Q18. How do you prevent SQL injection?
+A.   All queries are parameterised ($1, $2 ...); user input is never
+     concatenated into SQL.
+
+--- Backend ---
+
+Q19. Why does upload return 202 and process in the background?
+A.   Extraction and embedding can take several seconds for big files. The
+     request returns immediately with status "processing"; the dashboard
+     polls until it's "ready" or "failed".
+
+Q20. How does streaming work?
+A.   Server-Sent Events: the server sets Content-Type text/event-stream and
+     writes events (sources, delta, done, error) as Gemini produces text.
+     The browser reads it with fetch() and a ReadableStream (axios can't
+     read streams in the browser). SSE is simpler than WebSockets for
+     one-way server-to-client text.
+
+Q21. How do you extract text from each format?
+A.   PDF with pdf-parse (per page), DOCX with mammoth, Excel with SheetJS
+     (per sheet), PPTX by opening the ZIP with JSZip and reading the text
+     runs in each slide's XML, TXT directly.
+
+Q22. How is authentication implemented?
+A.   Passwords hashed with bcrypt. Login returns a JWT signed with a server
+     secret (7-day expiry) containing the user id. The frontend sends it in
+     the Authorization header; middleware verifies it and every query
+     filters by that user id. Google sign-in verifies Google's ID token
+     server-side before issuing our JWT.
+
+Q23. JWT vs sessions?
+A.   JWTs are stateless - no session store; any server instance can verify
+     them. Downside: they can't be revoked before expiry without extra work
+     (e.g. a denylist), which is why the expiry is limited.
+
+Q24. How is one user prevented from seeing another's documents?
+A.   Every query includes user_id from the verified token (e.g. WHERE id =
+     $1 AND user_id = $2). Requests for someone else's id return 404 -
+     tested in the automated tests.
+
+Q25. How do you handle errors?
+A.   Each route catches errors; a central Express error handler converts
+     upload errors, invalid ids and unexpected errors into JSON with proper
+     status codes; Gemini errors are turned into readable messages.
+
+--- Frontend ---
+
+Q26. How is state managed?
+A.   React hooks (useState/useEffect) per page, plus Context for the logged-
+     in user and the theme. The app is small enough not to need Redux.
+
+Q27. How do you render the AI's Markdown safely?
+A.   A small Markdown renderer that builds React elements (paragraphs,
+     lists, tables, bold, code) instead of injecting HTML, so model output
+     can't run scripts.
+
+Q28. How does voice work?
+A.   The browser's Web Speech API: SpeechRecognition turns speech into the
+     question text; speechSynthesis reads answers aloud with adjustable
+     speed. No server needed.
+
+--- Design, scaling, improvement ---
+
+Q29. How would you scale this to many users?
+A.   Move background processing to a job queue (e.g. BullMQ + Redis) with
+     workers; store original files in object storage; add an HNSW index
+     with halfvec for large collections; cache embeddings of repeated
+     questions; rate-limit per user; run multiple stateless API instances
+     (JWT makes this easy).
+
+Q30. How would you measure answer quality?
+A.   Create a set of questions with known answers and pages; measure
+     retrieval accuracy (is the right page in the top 4?) and answer
+     correctness; re-run whenever chunk size, k or the prompt changes.
+
+Q31. What was the hardest part?
+A.   (Pick what is true for you.) e.g. getting reliable structured JSON
+     from the model; making uploads robust across file types; designing the
+     vector search to be both exact and fast; streaming answers through the
+     stack.
+
+Q32. What would you do differently?
+A.   Add the evaluation set from the start, use a job queue for processing,
+     and add hybrid search.
+
+Q33. Why Gemini?
+A.   Free tier suitable for a student project, a strong embedding model,
+     fast Flash models, streaming and JSON output support in one SDK.
+
+Q34. What are the limitations?
+A.   No OCR for scanned PDFs; retrieval can miss information spread across
+     many places; depends on Gemini availability and quota; free hosting
+     sleeps when idle.
+
+
+================================================================================
+16. KEY TERMS GLOSSARY
+================================================================================
+
+ RAG            Retrieval-Augmented Generation: retrieve relevant text, then
+                generate an answer from it
+ LLM            Large Language Model (e.g. Gemini)
+ Embedding      Vector of numbers representing text meaning
+ Vector         An ordered list of numbers (here 3,072)
+ Cosine         Similarity of two vectors by angle; 1 = same direction
+ similarity
+ pgvector       PostgreSQL extension adding a vector type and distance
+                operators (<=> cosine, <-> Euclidean, <#> inner product)
+ Chunk          A piece of a document (~2,000 characters here)
+ Overlap        Characters shared by neighbouring chunks (200 here)
+ Top-k          The k most similar chunks (k = 4 / 6)
+ Context        Text given to the model inside the prompt
+ Hallucination  The model stating something not supported by its input
+ Token          Unit of text for an LLM, ~4 characters of English
+ Prompt         Instructions + context + question sent to the model
+ SSE            Server-Sent Events: server pushes text over an open HTTP
+                response
+ JWT            JSON Web Token: signed token proving who the user is
+ bcrypt         Slow, salted password-hashing algorithm
+ CORS           Browser rule controlling which websites can call an API
+ HNSW           Hierarchical Navigable Small World: approximate nearest-
+                neighbour index for fast vector search at large scale
+ Map-reduce     Process parts separately (map), then combine (reduce)
+ JSONB          PostgreSQL binary JSON column type
+ ON DELETE      Deleting a parent row deletes its child rows automatically
+ CASCADE
+ SPA            Single-Page Application (React app with client-side
+                routing)
+
+
+================================================================================
+17. TIPS
+================================================================================
+
+ - Know every file listed in section 11 well enough to open it and explain
+   it. Interviewers often say "show me where you do X".
+ - Be honest about what you built and what you used. If you used AI tools
+   or tutorials to help, say so and show you understand the code - that is
+   viewed far better than being caught out.
+ - Have numbers ready: 2,000-character chunks, 200 overlap, 3,072
+   dimensions, top 4 (6 for workspaces), 25 texts per embedding batch,
+   20 MB upload limit, 7-day JWT, 12 tables.
+ - Practise the demo with the deployed site, and have a screen recording as
+   backup in case the internet or free server is slow.
+ - When asked about something you didn't build (e.g. "did you use
+   LangChain?"), answer directly ("No, I implemented the pipeline myself
+   with the Gemini SDK and SQL") and explain the trade-off.
+ - Relate it to the job: backend roles -> API design, database, streaming,
+   error handling; AI/ML roles -> embeddings, retrieval, prompt design,
+   evaluation; frontend roles -> streaming UI, state, Markdown rendering.
+
+================================================================================
+                                   END
+================================================================================

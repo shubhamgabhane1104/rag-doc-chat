@@ -296,7 +296,7 @@ async function prepareWorkspaceAnswer(req) {
   });
 
   const queryVector = await embedText(question);
-  const topChunks = vectorStore.searchMultiDocs(Object.keys(docMap), queryVector, 6);
+  const topChunks = await vectorStore.search(Object.keys(docMap), queryVector, 6);
   if (topChunks.length === 0) {
     return { status: 400, error: 'No indexed text vectors found for the attached documents.' };
   }

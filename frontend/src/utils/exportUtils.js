@@ -637,7 +637,7 @@ export function exportAnalyticsReportPdf(analyticsData) {
 
   const healthData = [
     ['Database Engine', `${health?.database?.engine || 'PostgreSQL'} (${health?.database?.status || 'healthy'}, Footprint: ${health?.database?.size || 'N/A'})`],
-    ['Vector Store Cache', `${health?.vectorStore?.status || 'operational'} · ${health?.vectorStore?.totalVectors || 0} vectors (${health?.vectorStore?.dimension || 3072} dims, ${health?.vectorStore?.storagePretty || 'N/A'})`],
+    ['Vector Store (pgvector)', `${health?.vectorStore?.status || 'operational'} · ${health?.vectorStore?.totalVectors || 0} vectors (${health?.vectorStore?.dimension || 3072} dims, ${health?.vectorStore?.storagePretty || 'N/A'})`],
     ['Active AI Cluster', `Google Gemini (${health?.llmCluster?.status || 'operational'}) · Primary: ${health?.llmCluster?.primaryModel || 'gemini-3-flash-preview'}`],
     ['Available Failover Tiers', `${health?.llmCluster?.fallbackTiersAvailable || 5} resilient automated fallback models`],
     ['Node.js Runtime', `${health?.runtime?.nodeVersion || 'v24'} · Heap: ${health?.runtime?.heapUsedMB || 'N/A'} (Uptime: ${health?.runtime?.uptime || 'N/A'})`],

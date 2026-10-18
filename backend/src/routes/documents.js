@@ -98,22 +98,8 @@ async function processDocument(documentId, filePath) {
 
     const vectors = await embedTexts(chunks.map((c) => c.text));
 
-    const vectorEntries = [];
-    for (let i = 0; i < chunks.length; i++) {
-      const chunkId = uuidv4();
-      await pool.query(
-        'INSERT INTO chunks (id, document_id, chunk_index, page_number, chunk_text) VALUES ($1, $2, $3, $4, $5)',
-        [chunkId, documentId, i, chunks[i].pageNumber, chunks[i].text]
-      );
-      vectorEntries.push({
-        chunkId,
-        pageNumber: chunks[i].pageNumber,
-        text: chunks[i].text,
-        vector: vectors[i],
-      });
-    }
-
-    vectorStore.saveVectors(documentId, vectorEntries);
+    // Text and embeddings go into the same table, in one transaction
+    await vectorStore.saveChunks(documentId, chunks, vectors);
 
     await pool.query(
       'UPDATE documents SET status = $1, page_count = $2, chunk_count = $3 WHERE id = $4',
@@ -146,7 +132,6 @@ router.post('/:id/retry', requireAuth, async (req, res) => {
 
     // Reset document state and clear old chunks/vectors
     await pool.query('DELETE FROM chunks WHERE document_id = $1', [doc.id]);
-    vectorStore.deleteVectors(doc.id);
     await pool.query(
       'UPDATE documents SET status = $1, error_message = NULL WHERE id = $2',
       ['processing', doc.id]
@@ -202,7 +187,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
   if (!doc) return res.status(404).json({ error: 'Document not found' });
 
   if (fs.existsSync(doc.file_path)) fs.unlinkSync(doc.file_path);
-  vectorStore.deleteVectors(doc.id);
+  // chunks (and their embeddings), chats, quizzes, summaries go via ON DELETE CASCADE
   await pool.query('DELETE FROM documents WHERE id = $1', [doc.id]);
 
   res.json({ success: true });

@@ -536,7 +536,7 @@ export default function Analytics() {
                         <div className="flex items-center gap-2">
                           <Server size={16} className="text-indigo-600 dark:text-indigo-400" />
                           <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                            Vector Store Index
+                            Vectors (pgvector)
                           </span>
                         </div>
                         <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/20">

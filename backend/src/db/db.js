@@ -1,14 +1,85 @@
 const { Pool } = require('pg');
 
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-});
+// gemini-embedding-001 returns 3072-dimensional vectors
+const EMBEDDING_DIM = 3072;
+
+// Either one connection string (what Neon, Supabase, Render give you)
+// or the separate DB_* variables for a local PostgreSQL.
+const databaseUrl = process.env.DATABASE_URL ? process.env.DATABASE_URL.trim() : '';
+const useSsl = process.env.DB_SSL === 'true' || /[?&]sslmode=(require|verify-ca|verify-full|prefer)/.test(databaseUrl);
+
+// SSL is configured here rather than through ?sslmode= in the URL (the pg
+// driver warns that it will change how it reads that setting). Certificates
+// are verified; set DB_SSL_REJECT_UNAUTHORIZED=false only for a host whose
+// certificate your machine can't verify.
+const ssl = useSsl ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' } : undefined;
+
+function withoutSslParams(url) {
+  try {
+    const u = new URL(url);
+    ['sslmode', 'sslrootcert', 'uselibpqcompat'].forEach((k) => u.searchParams.delete(k));
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+const pool = new Pool(
+  databaseUrl
+    ? { connectionString: withoutSslParams(databaseUrl), ssl }
+    : {
+        host: process.env.DB_HOST,
+        port: process.env.DB_PORT,
+        database: process.env.DB_NAME,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        ssl,
+      }
+);
+
+/** Turns common connection errors into a message that says what to fix. */
+function explainConnectionError(err) {
+  const where = databaseUrl ? 'DATABASE_URL in backend/.env' : 'the DB_* settings in backend/.env';
+  const msg = err.message || '';
+  if (err.code === '28P01' || /password authentication failed/i.test(msg)) {
+    return `The database rejected the username or password. Check ${where}` +
+      (databaseUrl ? ' (in Neon, click "Show password" before copying the connection string, so it contains the real password, not ********).' : '.');
+  }
+  if (err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN') {
+    return `Can't find the database host. Check the host name in ${where}, and your internet connection.`;
+  }
+  if (err.code === 'ECONNREFUSED') {
+    return `Nothing is listening at the database address in ${where}. Is PostgreSQL running?`;
+  }
+  if (err.code === '3D000') {
+    return `That database name doesn't exist. Check ${where}.`;
+  }
+  return msg;
+}
+
+async function enablePgvector() {
+  try {
+    await pool.query('CREATE EXTENSION IF NOT EXISTS vector');
+  } catch (err) {
+    const extensionMissing =
+      err.code === '0A000' || // extension "vector" is not available (PG 15+)
+      err.code === '58P01' || // could not open extension control file (PG 14 and older)
+      /extension "vector"|vector\.control/i.test(err.message || '');
+    const e = new Error(
+      extensionMissing
+        ? 'The pgvector extension is not installed in this PostgreSQL server. Easiest fix: use a free Neon ' +
+            'or Supabase database (pgvector is built in) and put its connection string in DATABASE_URL. ' +
+            'See README > "Running it locally".'
+        : explainConnectionError(err)
+    );
+    e.cause = err;
+    throw e;
+  }
+}
 
 async function initDb() {
+  await enablePgvector();
+
   await pool.query(`
   CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY,
@@ -48,8 +119,16 @@ async function initDb() {
       document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
       chunk_index INTEGER NOT NULL,
       page_number INTEGER,
-      chunk_text TEXT NOT NULL
+      chunk_text TEXT NOT NULL,
+      embedding vector(${EMBEDDING_DIM})
     );
+
+    -- Databases created before the pgvector change get the column added here
+    ALTER TABLE chunks ADD COLUMN IF NOT EXISTS embedding vector(${EMBEDDING_DIM});
+
+    -- Search always filters by document first, so this index does the heavy lifting
+    CREATE INDEX IF NOT EXISTS idx_chunks_document ON chunks(document_id, chunk_index);
+    CREATE INDEX IF NOT EXISTS idx_documents_user ON documents(user_id, created_at DESC);
   `);
 
   await pool.query(`
@@ -176,4 +255,4 @@ async function initDb() {
   console.log('Database tables ready');
 }
 
-module.exports = { pool, initDb };
+module.exports = { pool, initDb, EMBEDDING_DIM };
