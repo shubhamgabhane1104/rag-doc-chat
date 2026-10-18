@@ -2,13 +2,209 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+/*
+ * DocChat palette.
+ * The components were written with Tailwind's stock slate / indigo / fuchsia
+ * classes. Rather than touch ~1,500 class names, the stock scales are
+ * re-pointed here so the whole app shares one considered palette:
+ *
+ *   slate   -> graphite   neutrals with a faint green cast (paper + pencil lead)
+ *   indigo  -> library    deep book-cloth teal, the one accent colour
+ *   fuchsia -> pencil     blue-pencil, for secondary actions (summaries)
+ *   emerald -> olive      "ready" / success, kept apart from the teal accent
+ *
+ * Change a scale here and every page follows.
+ */
+@theme {
+  --font-sans: "Public Sans Variable", "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Literata Variable", "Literata", Georgia, "Times New Roman", serif;
+
+  --color-slate-50: #f5f6f4;
+  --color-slate-100: #eceeeb;
+  --color-slate-200: #dcdfdb;
+  --color-slate-300: #c2c7c1;
+  --color-slate-400: #8f968e;
+  --color-slate-500: #697068;
+  --color-slate-600: #50574f;
+  --color-slate-700: #3d433d;
+  --color-slate-800: #262b27;
+  --color-slate-900: #1b1f1c;
+  --color-slate-950: #131614;
+
+  --color-indigo-50: #eef6f4;
+  --color-indigo-100: #d6ebe6;
+  --color-indigo-200: #aed6cd;
+  --color-indigo-300: #85c0b3;
+  --color-indigo-400: #62ab9c;
+  --color-indigo-500: #2f7c70;
+  --color-indigo-600: #1f5f5b;
+  --color-indigo-700: #1a4e4b;
+  --color-indigo-800: #163f3d;
+  --color-indigo-900: #123332;
+  --color-indigo-950: #0c2321;
+
+  --color-fuchsia-50: #f1f4f9;
+  --color-fuchsia-100: #e0e7f1;
+  --color-fuchsia-200: #c3d0e3;
+  --color-fuchsia-300: #9cb1cf;
+  --color-fuchsia-400: #7d9bc2;
+  --color-fuchsia-500: #52739f;
+  --color-fuchsia-600: #3e5c86;
+  --color-fuchsia-700: #344c6e;
+  --color-fuchsia-800: #2c3f5b;
+  --color-fuchsia-900: #26354b;
+  --color-fuchsia-950: #18212f;
+
+  --color-purple-50: var(--color-fuchsia-50);
+  --color-purple-100: var(--color-fuchsia-100);
+  --color-purple-200: var(--color-fuchsia-200);
+  --color-purple-300: var(--color-fuchsia-300);
+  --color-purple-400: var(--color-fuchsia-400);
+  --color-purple-500: var(--color-fuchsia-500);
+  --color-purple-600: var(--color-fuchsia-600);
+  --color-purple-700: var(--color-fuchsia-700);
+  --color-purple-800: var(--color-fuchsia-800);
+  --color-purple-900: var(--color-fuchsia-900);
+  --color-purple-950: var(--color-fuchsia-950);
+
+  --color-cyan-50: var(--color-indigo-50);
+  --color-cyan-100: var(--color-indigo-100);
+  --color-cyan-200: var(--color-indigo-200);
+  --color-cyan-300: var(--color-indigo-300);
+  --color-cyan-400: var(--color-indigo-400);
+  --color-cyan-500: var(--color-indigo-500);
+  --color-cyan-600: var(--color-indigo-600);
+  --color-cyan-700: var(--color-indigo-700);
+  --color-cyan-800: var(--color-indigo-800);
+  --color-cyan-900: var(--color-indigo-900);
+  --color-cyan-950: var(--color-indigo-950);
+
+  --color-emerald-50: #f4f7ec;
+  --color-emerald-100: #e6edd3;
+  --color-emerald-200: #cedcaa;
+  --color-emerald-300: #b0c679;
+  --color-emerald-400: #9ab55c;
+  --color-emerald-500: #74913a;
+  --color-emerald-600: #5a732c;
+  --color-emerald-700: #465925;
+  --color-emerald-800: #394821;
+  --color-emerald-900: #303d1f;
+  --color-emerald-950: #1a220f;
+
+  /* Smaller, hierarchy-aware corners instead of one big pill on everything */
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
+  --radius-3xl: 0.75rem;
+
+  /* Quieter elevation */
+  --shadow-md: 0 1px 2px rgb(19 22 20 / 0.06), 0 2px 6px rgb(19 22 20 / 0.05);
+  --shadow-lg: 0 2px 4px rgb(19 22 20 / 0.06), 0 6px 16px rgb(19 22 20 / 0.06);
+  --shadow-xl: 0 4px 10px rgb(19 22 20 / 0.08), 0 12px 28px rgb(19 22 20 / 0.08);
+  --shadow-2xl: 0 8px 24px rgb(19 22 20 / 0.14);
+
+  --animate-fade-in: fade-in 160ms ease-out;
+  --animate-slide-in-right: slide-in-right 180ms ease-out;
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes slide-in-right {
+    from { opacity: 0; transform: translateX(12px); }
+    to { opacity: 1; transform: none; }
+  }
 }
 
-.animation-delay-2000 {
-  animation-delay: 2s;
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-slate-50);
+    color: var(--color-slate-900);
+  }
+
+  .dark body {
+    background-color: var(--color-slate-950);
+    color: var(--color-slate-100);
+  }
+
+  /* Headings and reading text use the book face */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-serif);
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background-color: var(--color-indigo-100);
+    color: var(--color-indigo-900);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-indigo-500);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
-.animation-delay-4000 {
-  animation-delay: 4s;
+
+/* Long-form text the user reads: answers, previews, summaries */
+@utility prose-reading {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+/* Rendered markdown inside answers */
+@utility md {
+  & p { margin: 0 0 0.6em; }
+  & p:last-child { margin-bottom: 0; }
+  & ul, & ol { margin: 0.3em 0 0.7em; padding-left: 1.3em; }
+  & ul { list-style: disc; }
+  & ol { list-style: decimal; }
+  & li { margin: 0.15em 0; }
+  & strong { font-weight: 700; }
+  & h1, & h2, & h3, & h4 { font-weight: 600; margin: 0.9em 0 0.35em; font-size: 1.02em; }
+  & code {
+    font-size: 0.85em;
+    padding: 0.1em 0.3em;
+    border-radius: 0.25rem;
+    background: color-mix(in srgb, currentColor 8%, transparent);
+  }
+  & table { border-collapse: collapse; margin: 0.6em 0; font-size: 0.88em; width: 100%; }
+  & th, & td { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); padding: 0.35em 0.55em; text-align: left; vertical-align: top; }
+  & th { font-weight: 600; }
+}
+
+/* Blinking caret at the end of an answer that's still streaming in */
+@utility streaming-caret {
+  & > :last-child::after {
+    content: "";
+    display: inline-block;
+    width: 0.45em;
+    height: 1em;
+    margin-left: 0.15em;
+    vertical-align: -0.12em;
+    background: currentColor;
+    opacity: 0.55;
+    animation: caret-blink 1s steps(2, start) infinite;
+  }
+}
+
+@keyframes caret-blink {
+  to { visibility: hidden; }
 }

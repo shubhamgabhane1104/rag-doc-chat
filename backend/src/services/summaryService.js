@@ -1,25 +1,18 @@
 const { callGeminiWithFallback } = require('./geminiClient');
+const { parseJsonSafely } = require('./jsonUtils');
 
-/**
- * Safely parse JSON from LLM response, stripping markdown blocks if present.
- */
-function parseJsonSafely(rawText) {
-  let cleaned = rawText.trim();
-  if (cleaned.startsWith('```')) {
-    cleaned = cleaned.replace(/^```[a-zA-Z]*\n?/, '');
-    cleaned = cleaned.replace(/\n?```$/, '');
-  }
-  cleaned = cleaned.trim();
-
-  try {
-    return JSON.parse(cleaned);
-  } catch (err) {
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (match) {
-      return JSON.parse(match[0]);
+/** Runs fn over items with at most `limit` in flight; keeps result order. */
+async function mapWithConcurrency(items, limit, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i], i);
     }
-    throw new Error(`Failed to parse AI summary output as JSON: ${err.message}`);
-  }
+  });
+  await Promise.all(workers);
+  return results;
 }
 
 /**
@@ -60,23 +53,22 @@ Required JSON Structure:
   ]
 }`;
 
-  let response;
-  try {
-    response = await callGeminiWithFallback({
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-      },
-    });
-  } catch (err) {
-    response = await callGeminiWithFallback({
-      contents: prompt,
-    });
-  }
+  // One fallback chain only: every model in the chain supports JSON mode, so
+  // re-running the whole chain without it just doubled the wait on failures.
+  const response = await callGeminiWithFallback(
+    { contents: prompt, config: { responseMimeType: 'application/json' } },
+    { label: 'summary' }
+  );
 
-  const parsed = parseJsonSafely(response.text);
+  let parsed = parseJsonSafely(response.text);
+  if (Array.isArray(parsed)) parsed = parsed[0] || {};
+  if (!parsed.executiveSummary) {
+    throw new Error('The AI returned an incomplete summary. Please try again.');
+  }
   return {
     ...parsed,
+    keyTakeaways: Array.isArray(parsed.keyTakeaways) ? parsed.keyTakeaways : [],
+    glossary: Array.isArray(parsed.glossary) ? parsed.glossary : [],
     readingTimeMinutes: estimatedReadingTime,
   };
 }
@@ -96,9 +88,10 @@ ${batchText}
 
 Section Summary:`;
 
-  const response = await callGeminiWithFallback({
-    contents: prompt,
-  });
+  const response = await callGeminiWithFallback(
+    { contents: prompt },
+    { label: `summary section ${batchIndex + 1}` }
+  );
 
   return `[Section ${batchIndex + 1} Summary]:\n${response.text}`;
 }
@@ -134,12 +127,13 @@ async function generateDocumentSummary(chunks) {
     batches.push(chunks.slice(i, i + batchSize));
   }
 
-  // Map Step: summarize each batch
-  const intermediateSummaries = [];
-  for (let i = 0; i < batches.length; i++) {
-    const batchSummary = await summarizeBatch(batches[i], i);
-    intermediateSummaries.push(batchSummary);
-  }
+  // Map step: summarise sections in parallel (a few at a time, to stay
+  // under the free-tier rate limit) instead of one after another.
+  const intermediateSummaries = await mapWithConcurrency(
+    batches,
+    Number(process.env.SUMMARY_CONCURRENCY) || 4,
+    (batch, i) => summarizeBatch(batch, i)
+  );
 
   // Reduce Step: combine intermediate summaries to produce final executive summary & insights
   const combinedContext = intermediateSummaries.join('\n\n');
@@ -148,6 +142,4 @@ async function generateDocumentSummary(chunks) {
 
 module.exports = {
   generateDocumentSummary,
-  parseJsonSafely,
-  callGeminiWithFallback,
 };

@@ -1,27 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft,
-  BarChart3,
-  TrendingUp,
-  Layers,
-  MessageSquare,
-  Zap,
-  GraduationCap,
-  Database,
-  Cpu,
-  Activity,
-  Download,
-  RefreshCw,
-  FileText,
-  CheckCircle2,
-  Clock,
-  ShieldCheck,
-  PieChart,
-  Sparkles,
-  ExternalLink,
-  Server,
-} from 'lucide-react';
+import { ArrowLeft, BarChart3, TrendingUp, Layers, MessageSquare, Zap, GraduationCap, Database, Cpu, Activity, Download, RefreshCw, FileText, Clock, ShieldCheck, PieChart, NotebookText, ExternalLink, Server } from 'lucide-react';
 import client from '../api/client';
 import { exportAnalyticsReportPdf } from '../utils/exportUtils';
 
@@ -77,7 +56,7 @@ export default function Analytics() {
   const maxQueryValue = Math.max(...trends.map((t) => t.queries), 4);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/40 to-fuchsia-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
       {/* Top Header */}
       <header className="sticky top-0 z-30 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 px-6 py-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -91,16 +70,12 @@ export default function Analytics() {
             </button>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-fuchsia-600 dark:from-indigo-400 dark:to-fuchsia-400 bg-clip-text text-transparent">
-                  System Analytics & Observability
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+                  Usage
                 </h1>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Live Telemetry
-                </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                RAG retrieval latency, token efficiency, vector storage footprint & LLM telemetry
+                What you've uploaded, asked and practised, and how the backend is doing
               </p>
             </div>
           </div>
@@ -138,7 +113,7 @@ export default function Analytics() {
             <button
               onClick={handleExportPdf}
               disabled={exporting || loading || !data}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-500 hover:to-fuchsia-500 text-white shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/30 transition disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/30 transition disabled:opacity-50"
             >
               <Download size={14} />
               <span>{exporting ? 'Generating...' : 'Export Audit PDF'}</span>
@@ -195,7 +170,7 @@ export default function Analytics() {
                 </div>
                 <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                   <span>Single-Doc: {overview?.activity?.singleDocQueries || 0}</span>
-                  <span>Cross-Doc: {overview?.activity?.workspaceQueries || 0}</span>
+                  <span>Workspace: {overview?.activity?.workspaceQueries || 0}</span>
                 </div>
               </div>
 
@@ -235,7 +210,7 @@ export default function Analytics() {
                 </div>
                 <div className="mt-3 flex items-baseline gap-2">
                   <span className="text-3xl font-extrabold text-slate-900 dark:text-white">
-                    {overview?.ragEconomics?.tokenSavingsPercent || 85}%
+                    {overview?.ragEconomics?.tokenSavingsPercent ?? 0}%
                   </span>
                   <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                     Context Saved
@@ -328,7 +303,7 @@ export default function Analytics() {
                             style={{ height: `${queryHeight}px` }}
                             className={`w-3 sm:w-4 rounded-t-md transition-all duration-300 ${
                               item.queries > 0
-                                ? 'bg-gradient-to-t from-indigo-600 to-indigo-400 group-hover:from-indigo-500 group-hover:to-indigo-300'
+                                ? 'bg-indigo-600 group-hover:bg-indigo-500'
                                 : 'bg-slate-200 dark:bg-slate-800'
                             }`}
                           />
@@ -337,7 +312,7 @@ export default function Analytics() {
                             style={{ height: `${uploadHeight}px` }}
                             className={`w-2 sm:w-3 rounded-t-md transition-all duration-300 ${
                               item.uploads > 0
-                                ? 'bg-gradient-to-t from-fuchsia-600 to-fuchsia-400 group-hover:from-fuchsia-500 group-hover:to-fuchsia-300'
+                                ? 'bg-fuchsia-600 group-hover:bg-fuchsia-500'
                                 : 'bg-slate-200/50 dark:bg-slate-800/50'
                             }`}
                           />
@@ -357,7 +332,7 @@ export default function Analytics() {
                     <Activity size={13} className="text-emerald-500" />
                     Peak day: {trends.reduce((prev, curr) => (curr.queries > prev.queries ? curr : prev), trends[0] || {}).label || 'N/A'}
                   </span>
-                  <span>Average Latency: ~{overview?.ragEconomics?.avgLatencyMs || 820}ms / request</span>
+                  <span>Average model latency: {overview?.ragEconomics?.avgLatencyMs != null ? `${overview.ragEconomics.avgLatencyMs} ms` : 'no requests yet'}</span>
                 </div>
               </div>
 
@@ -588,7 +563,7 @@ export default function Analytics() {
                     <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Sparkles size={16} className="text-fuchsia-600 dark:text-fuchsia-400" />
+                          <NotebookText size={16} className="text-fuchsia-600 dark:text-fuchsia-400" />
                           <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
                             Gemini AI Cluster
                           </span>

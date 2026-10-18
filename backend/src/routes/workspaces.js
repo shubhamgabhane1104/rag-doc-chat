@@ -4,10 +4,14 @@ const { pool } = require('../db/db');
 const { requireAuth } = require('../middleware/auth');
 const { embedText } = require('../services/embeddingService');
 const vectorStore = require('../services/vectorStore');
-const { generateWorkspaceAnswer, compareDocuments } = require('../services/workspaceService');
+const { generateWorkspaceAnswer, streamWorkspaceAnswer, compareDocuments } = require('../services/workspaceService');
+const { openStream } = require('../services/sse');
 const { cleanErrorMessage } = require('../services/geminiClient');
 
+const { uuidParams, isUuid } = require('../middleware/validate');
+
 const router = express.Router();
+uuidParams(router, 'id');
 
 /**
  * Helper to get or create a default chat session for a workspace
@@ -82,18 +86,20 @@ router.post('/', requireAuth, async (req, res) => {
     );
 
     // Attach initial documents if provided
+    let attached = 0;
     if (Array.isArray(documentIds) && documentIds.length > 0) {
-      for (const docId of documentIds) {
+      for (const docId of documentIds.filter(isUuid)) {
         // verify document belongs to user
         const docCheck = await pool.query(
           'SELECT id FROM documents WHERE id = $1 AND user_id = $2',
           [docId, req.userId]
         );
         if (docCheck.rows.length > 0) {
-          await pool.query(
+          const ins = await pool.query(
             'INSERT INTO workspace_documents (workspace_id, document_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
             [workspaceId, docId]
           );
+          attached += ins.rowCount;
         }
       }
     }
@@ -102,7 +108,7 @@ router.post('/', requireAuth, async (req, res) => {
       id: workspaceId,
       name: name.trim(),
       description: description.trim(),
-      documentCount: documentIds.length,
+      documentCount: attached,
     });
   } catch (err) {
     console.error('Create workspace error:', err);
@@ -226,7 +232,7 @@ router.post('/:id/documents', requireAuth, async (req, res) => {
     await pool.query('DELETE FROM workspace_documents WHERE workspace_id = $1', [id]);
 
     // Insert new links
-    for (const docId of documentIds) {
+    for (const docId of documentIds.filter(isUuid)) {
       const docCheck = await pool.query(
         'SELECT id FROM documents WHERE id = $1 AND user_id = $2',
         [docId, req.userId]
@@ -256,89 +262,113 @@ router.post('/:id/documents', requireAuth, async (req, res) => {
 });
 
 /**
- * Send a message / question across all workspace documents (Cross-Doc RAG)
+ * Validates the request and retrieves passages across the workspace's documents.
+ * Returns { error, status } when the question can't be answered.
+ */
+async function prepareWorkspaceAnswer(req) {
+  const { id } = req.params;
+  const question = (req.body.question || '').trim();
+  if (!question) return { status: 400, error: 'Question is required' };
+
+  const wsResult = await pool.query(
+    'SELECT id, name FROM workspaces WHERE id = $1 AND user_id = $2',
+    [id, req.userId]
+  );
+  if (wsResult.rows.length === 0) return { status: 404, error: 'Workspace not found' };
+
+  const docsResult = await pool.query(
+    `SELECT d.id, d.filename, d.status
+     FROM workspace_documents wd
+     JOIN documents d ON wd.document_id = d.id
+     WHERE wd.workspace_id = $1 AND d.status = 'ready'`,
+    [id]
+  );
+  if (docsResult.rows.length === 0) {
+    return {
+      status: 400,
+      error: 'No ready documents attached to this workspace. Please attach at least one ready document first.',
+    };
+  }
+
+  const docMap = {};
+  docsResult.rows.forEach((d) => {
+    docMap[d.id] = d.filename;
+  });
+
+  const queryVector = await embedText(question);
+  const topChunks = vectorStore.searchMultiDocs(Object.keys(docMap), queryVector, 6);
+  if (topChunks.length === 0) {
+    return { status: 400, error: 'No indexed text vectors found for the attached documents.' };
+  }
+
+  const sources = topChunks.map((c) => ({
+    documentId: c.documentId,
+    filename: docMap[c.documentId] || 'Document',
+    pageNumber: c.pageNumber || 1,
+    snippet: c.text ? c.text.slice(0, 200) : '',
+    relevanceScore: Math.round(c.score * 100) / 100,
+  }));
+
+  return { workspaceId: id, question, topChunks, docMap, sources };
+}
+
+async function saveWorkspaceExchange(prep, userId, answer) {
+  const chat = await getOrCreateWorkspaceChat(prep.workspaceId, userId);
+  await pool.query(
+    'INSERT INTO workspace_messages (id, chat_id, role, content) VALUES ($1, $2, $3, $4)',
+    [uuidv4(), chat.id, 'user', prep.question]
+  );
+  await pool.query(
+    'INSERT INTO workspace_messages (id, chat_id, role, content, sources) VALUES ($1, $2, $3, $4, $5)',
+    [uuidv4(), chat.id, 'assistant', answer, JSON.stringify(prep.sources)]
+  );
+}
+
+/**
+ * Send a question across all workspace documents (cross-document RAG)
  * POST /workspaces/:id/message
  */
 router.post('/:id/message', requireAuth, async (req, res) => {
   try {
-    const { id } = req.params;
-    const { question } = req.body;
+    const prep = await prepareWorkspaceAnswer(req);
+    if (prep.error) return res.status(prep.status).json({ error: prep.error });
 
-    if (!question || !question.trim()) {
-      return res.status(400).json({ error: 'Question is required' });
-    }
-
-    // 1. Verify workspace ownership
-    const wsResult = await pool.query(
-      'SELECT id, name FROM workspaces WHERE id = $1 AND user_id = $2',
-      [id, req.userId]
-    );
-    if (wsResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Workspace not found' });
-    }
-
-    // 2. Fetch all attached documents that are ready
-    const docsResult = await pool.query(
-      `SELECT d.id, d.filename, d.status 
-       FROM workspace_documents wd
-       JOIN documents d ON wd.document_id = d.id
-       WHERE wd.workspace_id = $1 AND d.status = 'ready'`,
-      [id]
-    );
-
-    if (docsResult.rows.length === 0) {
-      return res.status(400).json({
-        error: 'No ready documents attached to this workspace. Please attach at least one ready document first.',
-      });
-    }
-
-    const attachedDocIds = docsResult.rows.map((d) => d.id);
-    const docMap = {};
-    docsResult.rows.forEach((d) => {
-      docMap[d.id] = d.filename;
-    });
-
-    // 3. Embed question and perform Multi-Document vector search
-    const queryVector = await embedText(question.trim());
-    const topChunks = vectorStore.searchMultiDocs(attachedDocIds, queryVector, 6);
-
-    if (topChunks.length === 0) {
-      return res.status(400).json({
-        error: 'No indexed text vectors found for the attached documents.',
-      });
-    }
-
-    // 4. Generate Synthesized Multi-Document Answer
-    const answer = await generateWorkspaceAnswer(question.trim(), topChunks, docMap);
-
-    // 5. Structure Citations
-    const sources = topChunks.map((c) => ({
-      documentId: c.documentId,
-      filename: docMap[c.documentId] || 'Document',
-      pageNumber: c.pageNumber || 1,
-      snippet: c.text ? c.text.slice(0, 200) : '',
-      relevanceScore: Math.round(c.score * 100) / 100,
-    }));
-
-    // 6. Save to database in workspace chat
-    const chat = await getOrCreateWorkspaceChat(id, req.userId);
-
-    await pool.query(
-      'INSERT INTO workspace_messages (id, chat_id, role, content) VALUES ($1, $2, $3, $4)',
-      [uuidv4(), chat.id, 'user', question.trim()]
-    );
-
-    await pool.query(
-      'INSERT INTO workspace_messages (id, chat_id, role, content, sources) VALUES ($1, $2, $3, $4, $5)',
-      [uuidv4(), chat.id, 'assistant', answer, JSON.stringify(sources)]
-    );
-
-    res.json({ answer, sources });
+    const answer = await generateWorkspaceAnswer(prep.question, prep.topChunks, prep.docMap);
+    await saveWorkspaceExchange(prep, req.userId, answer);
+    res.json({ answer, sources: prep.sources });
   } catch (err) {
     console.error('Workspace message error:', err);
-    res.status(500).json({
-      error: cleanErrorMessage(err),
-    });
+    res.status(500).json({ error: cleanErrorMessage(err) });
+  }
+});
+
+/**
+ * Streaming version (Server-Sent Events, see services/sse.js)
+ * POST /workspaces/:id/message/stream
+ */
+router.post('/:id/message/stream', requireAuth, async (req, res) => {
+  let prep;
+  try {
+    prep = await prepareWorkspaceAnswer(req);
+  } catch (err) {
+    console.error('Workspace stream prepare error:', err);
+    return res.status(500).json({ error: cleanErrorMessage(err) });
+  }
+  if (prep.error) return res.status(prep.status).json({ error: prep.error });
+
+  const stream = openStream(res);
+  stream.send('sources', prep.sources);
+  try {
+    const answer = await streamWorkspaceAnswer(prep.question, prep.topChunks, prep.docMap, (text) =>
+      stream.send('delta', { text })
+    );
+    await saveWorkspaceExchange(prep, req.userId, answer);
+    stream.send('done', { answer });
+  } catch (err) {
+    console.error('Workspace stream error:', err);
+    stream.send('error', { error: cleanErrorMessage(err) });
+  } finally {
+    stream.end();
   }
 });
 
@@ -388,7 +418,7 @@ router.post('/:id/compare', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { docAId, docBId, comparisonType = 'differences' } = req.body;
 
-    if (!docAId || !docBId || docAId === docBId) {
+    if (!isUuid(docAId) || !isUuid(docBId) || docAId === docBId) {
       return res.status(400).json({ error: 'Please select two different documents to compare.' });
     }
 

@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { FileText, MessageSquare, Sparkles, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import GoogleSignInButton from '../components/GoogleSignInButton';
+import AuthLayout from '../components/AuthLayout';
+import { inputClass } from '../styles';
+
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -22,114 +25,72 @@ export default function Login() {
       await login(email, password);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+      setError(err.response?.data?.error || 'Could not reach the server. Is the backend running?');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-slate-950 flex items-center justify-center px-4">
-      <div className="absolute top-0 -left-20 w-96 h-96 bg-indigo-600 rounded-full mix-blend-screen filter blur-3xl opacity-30 animate-blob"></div>
-      <div className="absolute top-0 -right-20 w-96 h-96 bg-fuchsia-600 rounded-full mix-blend-screen filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
-      <div className="absolute -bottom-20 left-40 w-96 h-96 bg-cyan-500 rounded-full mix-blend-screen filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+    <AuthLayout>
+      <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-1">Log in</h2>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Pick up where you left off.</p>
 
-      <div className="relative w-full max-w-4xl grid md:grid-cols-2 rounded-2xl overflow-hidden shadow-2xl border border-white/10 animate-fade-in">
-        <div className="hidden md:flex flex-col justify-between bg-white/5 backdrop-blur-xl p-10 text-white">
-          <div>
-            <div className="flex items-center gap-2 mb-8">
-              <div className="w-9 h-9 rounded-lg bg-indigo-500 flex items-center justify-center">
-                <MessageSquare size={18} />
-              </div>
-              <span className="font-semibold text-lg">DocChat</span>
-            </div>
-            <h1 className="text-3xl font-bold leading-tight mb-3">
-              Chat with your documents,<br />powered by AI
-            </h1>
-            <p className="text-slate-300 text-sm">
-              Upload a PDF and ask it anything. Every answer is grounded in your actual document — with page citations.
-            </p>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm text-slate-300">
-              <FileText size={16} className="text-indigo-400" /> Upload any PDF
-            </div>
-            <div className="flex items-center gap-2 text-sm text-slate-300">
-              <Sparkles size={16} className="text-fuchsia-400" /> Get grounded, cited answers
-            </div>
-          </div>
+      {justSignedUp && (
+        <div className="flex items-center gap-2 text-sm text-emerald-800 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-200 px-3 py-2.5 rounded-lg mb-4">
+          <CheckCircle2 size={16} />
+          Account created. Log in to continue.
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={inputClass}
+            placeholder="you@college.edu"
+          />
+        </div>
+        <div>
+          <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
+          <input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={inputClass}
+          />
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-8 sm:p-10">
-          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-1">Welcome back</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Log in to continue</p>
+        {error && (
+          <p role="alert" className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/50 px-3 py-2 rounded-lg">{error}</p>
+        )}
 
-          {justSignedUp && (
-            <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 px-3 py-2.5 rounded-lg mb-4">
-              <CheckCircle2 size={16} />
-              Account created successfully! Please log in.
-            </div>
-          )}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+        >
+          {loading ? 'Logging in…' : 'Log in'}
+        </button>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                placeholder="you@example.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                placeholder="••••••••"
-              />
-            </div>
+        <GoogleSignInButton onError={setError} />
+      </form>
 
-            {error && (
-              <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 px-3 py-2 rounded-lg">{error}</p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 transition shadow-lg shadow-indigo-600/20"
-            >
-              {loading ? 'Logging in...' : 'Log in'}
-            </button>
-
-            <div className="relative py-2">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-white dark:bg-slate-900 px-2 text-slate-400 dark:text-slate-500">or</span>
-              </div>
-            </div>
-
-            <GoogleSignInButton
-              text="Continue with Google"
-              onError={(err) => setError(err)}
-            />
-          </form>
-
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-6 text-center">
-            Don't have an account?{' '}
-            <Link to="/signup" className="text-indigo-600 font-medium hover:underline">
-              Sign up
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mt-6">
+        New here?{' '}
+        <Link to="/signup" className="text-indigo-700 dark:text-indigo-300 font-semibold hover:underline">
+          Create an account
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }

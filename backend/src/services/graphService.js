@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { pool } = require('../db/db');
 const { callGeminiWithFallback } = require('./geminiClient');
+const { parseJsonSafely } = require('./jsonUtils');
 
 /**
  * Samples chunks evenly if the document has many chunks,
@@ -22,18 +23,6 @@ function sampleChunks(chunks, maxChunks = 16) {
   }
 
   return sampled;
-}
-
-/**
- * Cleanly strips markdown code fences and parses JSON safely
- */
-function parseJsonSafely(rawText) {
-  let cleaned = rawText.trim();
-  if (cleaned.startsWith('```')) {
-    cleaned = cleaned.replace(/^```[a-zA-Z]*\n?/, '');
-    cleaned = cleaned.replace(/\n?```$/, '');
-  }
-  return JSON.parse(cleaned.trim());
 }
 
 /**
@@ -97,7 +86,8 @@ ${contextText}`;
   // 2. Call Gemini with resilient multi-tier fallback
   const response = await callGeminiWithFallback({
     contents: prompt,
-  });
+    config: { responseMimeType: 'application/json' },
+  }, { label: 'concept map' });
 
   const parsed = parseJsonSafely(response.text);
 
@@ -106,6 +96,7 @@ ${contextText}`;
   }
 
   // 3. Clean and cross-validate nodes and edges
+  parsed.nodes = parsed.nodes.filter((n) => n && n.id && n.label);
   const validNodeIds = new Set(parsed.nodes.map((n) => n.id));
   const cleanEdges = (parsed.edges || []).filter(
     (e) => validNodeIds.has(e.source) && validNodeIds.has(e.target) && e.source !== e.target

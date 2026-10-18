@@ -1,6 +1,6 @@
 const { pool } = require('../db/db');
 const { getVectorStoreStats } = require('./vectorStore');
-const { MODELS } = require('./geminiClient');
+const { MODELS, getAverageLatencyMs } = require('./geminiClient');
 
 /**
  * Gathers high-level telemetry and KPI metrics for a specific user
@@ -78,9 +78,9 @@ async function getOverviewMetrics(userId) {
   const estimatedTokensUsed = totalQueries * 735;
   // If no RAG was used, stuffing whole documents would require ~500 tokens per page * totalPages per query
   const estimatedTokensWithoutRag = totalQueries * Math.max(totalPages * 450, 1500);
-  const tokenSavingsPercent = estimatedTokensWithoutRag > 0 
-    ? Math.min(Math.round(((estimatedTokensWithoutRag - estimatedTokensUsed) / estimatedTokensWithoutRag) * 100), 96)
-    : 85;
+  const tokenSavingsPercent = estimatedTokensWithoutRag > 0
+    ? Math.max(0, Math.round(((estimatedTokensWithoutRag - estimatedTokensUsed) / estimatedTokensWithoutRag) * 100))
+    : 0;
 
   return {
     documents: {
@@ -104,8 +104,9 @@ async function getOverviewMetrics(userId) {
     ragEconomics: {
       estimatedTokensUsed,
       estimatedTokensWithoutRag,
-      tokenSavingsPercent: Math.max(tokenSavingsPercent, 75),
-      avgLatencyMs: 820, // Average vector search + generative completion latency
+      tokenSavingsPercent,
+      // Measured from real Gemini calls since the server started; null until the first one.
+      avgLatencyMs: getAverageLatencyMs(),
     },
   };
 }

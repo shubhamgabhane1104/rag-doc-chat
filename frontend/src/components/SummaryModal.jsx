@@ -1,23 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import {
-  X,
-  Sparkles,
-  BookOpen,
-  Clock,
-  Layers,
-  Check,
-  Copy,
-  RotateCcw,
-  Loader2,
-  FileText,
-  Bookmark,
-  CheckCircle2,
-  Info,
-  Flame,
-  AlertCircle,
-  Download,
-  FileDown
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { X, NotebookText, BookOpen, Clock, Layers, Check, Copy, RotateCcw, Loader2, Bookmark, AlertCircle, Download, FileDown } from 'lucide-react';
 import client from '../api/client';
 import { exportStudyGuideToPdf, downloadTextFile } from '../utils/exportUtils';
 
@@ -127,21 +109,16 @@ export default function SummaryModal({ documentId, filename, onClose }) {
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 md:p-6 animate-fade-in">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Modal Header */}
-        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4 bg-gradient-to-r from-slate-50 via-white to-fuchsia-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800/80">
+        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4 bg-slate-50 dark:bg-slate-900">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-indigo-600 flex items-center justify-center text-white shrink-0 shadow-sm">
-              <Sparkles size={20} />
+            <div className="w-10 h-10 rounded-2xl bg-fuchsia-500 flex items-center justify-center text-white shrink-0 shadow-sm">
+              <NotebookText size={20} />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white truncate">
-                  AI Document Insights
+                  Summary
                 </h2>
-                {summaryData && (
-                  <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold bg-fuchsia-50 dark:bg-fuchsia-950/80 text-fuchsia-700 dark:text-fuchsia-300 px-2.5 py-0.5 rounded-full border border-fuchsia-200/60 dark:border-fuchsia-800/80">
-                    <CheckCircle2 size={11} /> Saved in DB
-                  </span>
-                )}
               </div>
               <p className="text-xs text-slate-400 dark:text-slate-500 truncate max-w-md">
                 {summaryData?.filename || filename || 'Document Overview'}
@@ -226,7 +203,7 @@ export default function SummaryModal({ documentId, filename, onClose }) {
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                Executive TL;DR
+                Overview
               </button>
               <button
                 onClick={() => setActiveTab('takeaways')}
@@ -291,46 +268,17 @@ export default function SummaryModal({ documentId, filename, onClose }) {
               {/* TAB 1: EXECUTIVE SUMMARY */}
               {activeTab === 'executive' && (
                 <div className="space-y-6 animate-fade-in">
-                  <div className="bg-gradient-to-br from-indigo-50/50 via-fuchsia-50/40 to-white dark:from-slate-800/60 dark:via-slate-800/30 dark:to-slate-900 border border-indigo-100/80 dark:border-slate-800 rounded-3xl p-6 md:p-8">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-fuchsia-600 dark:text-fuchsia-400 mb-3">
+                  <div className="bg-indigo-50/50 dark:bg-slate-800/60 border border-indigo-100/80 dark:border-slate-800 rounded-3xl p-6 md:p-8">
+                    <div className="flex items-center gap-2 text-xs font-bold text-fuchsia-600 dark:text-fuchsia-400 mb-3">
                       <BookOpen size={16} />
-                      <span>Executive Overview</span>
+                      <span>In short</span>
                     </div>
 
-                    <p className="text-base md:text-lg text-slate-800 dark:text-slate-200 leading-relaxed font-normal whitespace-pre-line">
+                    <p className="prose-reading text-base md:text-[1.05rem] text-slate-800 dark:text-slate-200 whitespace-pre-line">
                       {summaryData.executiveSummary}
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/70 dark:border-slate-800 flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                        <Clock size={16} />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wide">
-                          Time Saved
-                        </h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          Read in ~{summaryData.readingTimeMinutes} mins instead of skimming raw pages.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/70 dark:border-slate-800 flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-fuchsia-100 dark:bg-fuchsia-950 text-fuchsia-600 dark:text-fuchsia-400 flex items-center justify-center shrink-0">
-                        <Layers size={16} />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wide">
-                          Cached In PostgreSQL
-                        </h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          Persisted to database for instant zero-latency future retrieval.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               )}
 

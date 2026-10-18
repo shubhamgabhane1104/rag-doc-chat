@@ -1,38 +1,14 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Network,
-  Share2,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  RotateCcw,
-  RefreshCw,
-  Download,
-  Search,
-  BookOpen,
-  MessageSquare,
-  Sparkles,
-  Layers,
-  FileText,
-  Sliders,
-  X,
-  Play,
-  Pause,
-  ChevronRight,
-  ExternalLink,
-  Info,
-  Check,
-} from 'lucide-react';
+import { ArrowLeft, Network, ZoomIn, ZoomOut, RotateCcw, RefreshCw, Download, Search, BookOpen, MessageSquare, NotebookText, X, Play, Pause, ChevronRight, Info } from 'lucide-react';
 import client from '../api/client';
 import { useTheme } from '../context/ThemeContext';
 
 // Color palette mapping by category
 const CATEGORY_COLORS = {
   Architecture: {
-    bg: '#4f46e5', // indigo-600
-    border: '#818cf8',
+    bg: '#1f5f5b', // library teal
+    border: '#62ab9c',
     glow: 'rgba(99, 102, 241, 0.4)',
     text: '#ffffff',
     pillBg: 'bg-indigo-50 dark:bg-indigo-950/60',
@@ -41,8 +17,8 @@ const CATEGORY_COLORS = {
     dot: 'bg-indigo-500',
   },
   Algorithm: {
-    bg: '#059669', // emerald-600
-    border: '#34d399',
+    bg: '#5a732c', // olive
+    border: '#9ab55c',
     glow: 'rgba(16, 185, 129, 0.4)',
     text: '#ffffff',
     pillBg: 'bg-emerald-50 dark:bg-emerald-950/60',
@@ -51,8 +27,8 @@ const CATEGORY_COLORS = {
     dot: 'bg-emerald-500',
   },
   Component: {
-    bg: '#d97706', // amber-600
-    border: '#fbbf24',
+    bg: '#9a6a1c', // ochre
+    border: '#d4a24c',
     glow: 'rgba(245, 158, 11, 0.4)',
     text: '#ffffff',
     pillBg: 'bg-amber-50 dark:bg-amber-950/60',
@@ -61,8 +37,8 @@ const CATEGORY_COLORS = {
     dot: 'bg-amber-500',
   },
   Security: {
-    bg: '#e11d48', // rose-600
-    border: '#fb7185',
+    bg: '#9b3b2e', // brick
+    border: '#d07a6b',
     glow: 'rgba(244, 63, 94, 0.4)',
     text: '#ffffff',
     pillBg: 'bg-rose-50 dark:bg-rose-950/60',
@@ -71,8 +47,8 @@ const CATEGORY_COLORS = {
     dot: 'bg-rose-500',
   },
   Metric: {
-    bg: '#0891b2', // cyan-600
-    border: '#22d3ee',
+    bg: '#3e5c86', // blue pencil
+    border: '#7d9bc2',
     glow: 'rgba(6, 182, 212, 0.4)',
     text: '#ffffff',
     pillBg: 'bg-cyan-50 dark:bg-cyan-950/60',
@@ -81,8 +57,8 @@ const CATEGORY_COLORS = {
     dot: 'bg-cyan-500',
   },
   Concept: {
-    bg: '#9333ea', // purple-600
-    border: '#c084fc',
+    bg: '#6b4a72', // plum
+    border: '#a685ad',
     glow: 'rgba(168, 85, 247, 0.4)',
     text: '#ffffff',
     pillBg: 'bg-purple-50 dark:bg-purple-950/60',
@@ -93,8 +69,8 @@ const CATEGORY_COLORS = {
 };
 
 const DEFAULT_COLOR = {
-  bg: '#64748b', // slate-500
-  border: '#94a3b8',
+  bg: '#697068', // graphite
+  border: '#8f968e',
   glow: 'rgba(100, 116, 139, 0.3)',
   text: '#ffffff',
   pillBg: 'bg-slate-50 dark:bg-slate-800',
@@ -381,7 +357,7 @@ export default function KnowledgeGraph() {
       ctx.scale(dpr, dpr);
 
       // Background clearing
-      ctx.fillStyle = isDark ? '#090d16' : '#f8fafc';
+      ctx.fillStyle = isDark ? '#131614' : '#f5f6f4';
       ctx.fillRect(0, 0, width, height);
 
       // Subtle grid dots
@@ -433,7 +409,7 @@ export default function KnowledgeGraph() {
         ctx.lineTo(tgt.x, tgt.y);
 
         if (isRelatedToSelected) {
-          ctx.strokeStyle = '#6366f1';
+          ctx.strokeStyle = '#2f7c70';
           ctx.lineWidth = 2.4;
           ctx.setLineDash([]);
         } else if (isFiltered) {
@@ -470,7 +446,7 @@ export default function KnowledgeGraph() {
           );
           ctx.closePath();
           ctx.fillStyle = isRelatedToSelected
-            ? '#6366f1'
+            ? '#2f7c70'
             : isDark
             ? 'rgba(148, 163, 184, 0.6)'
             : 'rgba(100, 116, 139, 0.7)';
@@ -486,8 +462,8 @@ export default function KnowledgeGraph() {
           const padW = 7;
           const padH = 3;
 
-          ctx.fillStyle = isDark ? '#1e293b' : '#ffffff';
-          ctx.strokeStyle = isDark ? '#334155' : '#cbd5e1';
+          ctx.fillStyle = isDark ? '#262b27' : '#ffffff';
+          ctx.strokeStyle = isDark ? '#3d433d' : '#c2c7c1';
           ctx.lineWidth = 0.8;
           ctx.beginPath();
           ctx.roundRect(
@@ -500,7 +476,7 @@ export default function KnowledgeGraph() {
           ctx.fill();
           ctx.stroke();
 
-          ctx.fillStyle = isDark ? '#94a3b8' : '#64748b';
+          ctx.fillStyle = isDark ? '#8f968e' : '#697068';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(edge.relation, midX, midY);
@@ -568,7 +544,7 @@ export default function KnowledgeGraph() {
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = isDark ? '#f8fafc' : '#0f172a';
+        ctx.fillStyle = isDark ? '#f5f6f4' : '#1b1f1c';
         ctx.fillText(labelText, node.x, labelY + 3);
 
         // Core / Tier indicator inside node
@@ -744,11 +720,11 @@ export default function KnowledgeGraph() {
 
     let svg = `<?xml version="1.0" standalone="no"?>
 <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100%" height="100%" fill="#090d16"/>
+  <rect width="100%" height="100%" fill="#131614"/>
   <text x="30" y="45" font-family="sans-serif" font-size="22" font-weight="bold" fill="#ffffff">${
     graphData.centralTopic || 'AI Knowledge Graph'
   }</text>
-  <text x="30" y="70" font-family="sans-serif" font-size="12" fill="#94a3b8">${
+  <text x="30" y="70" font-family="sans-serif" font-size="12" fill="#8f968e">${
     documentInfo?.filename || ''
   } · Extracted with RAG Concept Graph</text>
   <g id="edges">`;
@@ -757,7 +733,7 @@ export default function KnowledgeGraph() {
       const src = nodeMap.get(e.source);
       const tgt = nodeMap.get(e.target);
       if (!src || !tgt) continue;
-      svg += `\n    <line x1="${src.x}" y1="${src.y}" x2="${tgt.x}" y2="${tgt.y}" stroke="#475569" stroke-width="1.5"/>`;
+      svg += `\n    <line x1="${src.x}" y1="${src.y}" x2="${tgt.x}" y2="${tgt.y}" stroke="#50574f" stroke-width="1.5"/>`;
     }
 
     svg += `\n  </g>\n  <g id="nodes">`;
@@ -839,11 +815,8 @@ export default function KnowledgeGraph() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="font-bold text-sm sm:text-base leading-tight">
-                  AI Knowledge Graph & Concept Map
+                  Concept map
                 </h1>
-                <span className="hidden md:inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/80">
-                  Interactive RAG Graph
-                </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[200px] sm:max-w-xs">
                 {documentInfo?.filename || 'Document Analysis'}
@@ -983,7 +956,7 @@ export default function KnowledgeGraph() {
             <div className="relative w-16 h-16 flex items-center justify-center">
               <div className="absolute inset-0 rounded-full border-4 border-indigo-200 dark:border-indigo-950 animate-ping opacity-25" />
               <div className="w-12 h-12 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin" />
-              <Sparkles className="absolute text-indigo-600 dark:text-indigo-400" size={20} />
+              <NotebookText className="absolute text-indigo-600 dark:text-indigo-400" size={20} />
             </div>
             <div className="text-center max-w-sm px-4">
               <p className="font-semibold text-slate-900 dark:text-white text-sm">
@@ -1110,7 +1083,7 @@ export default function KnowledgeGraph() {
                     className="w-1.5 h-1.5 rounded-full"
                     style={{
                       backgroundColor:
-                        CATEGORY_COLORS[selectedNode.category]?.bg || '#6366f1',
+                        CATEGORY_COLORS[selectedNode.category]?.bg || '#2f7c70',
                     }}
                   />
                   {selectedNode.category}
@@ -1154,7 +1127,7 @@ export default function KnowledgeGraph() {
 
             {/* Semantic Concept Description */}
             <div className="space-y-1.5 mb-5">
-              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <h4 className="text-xs font-semibold text-slate-500">
                 Concept Definition & Role
               </h4>
               <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800">
@@ -1165,7 +1138,7 @@ export default function KnowledgeGraph() {
 
             {/* Connected Concept Relationships */}
             <div className="space-y-3 flex-1 mb-5">
-              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <h4 className="text-xs font-semibold text-slate-500">
                 Direct Relationships
               </h4>
 

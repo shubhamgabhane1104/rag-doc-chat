@@ -608,10 +608,10 @@ export function exportAnalyticsReportPdf(analyticsData) {
     ['Total Documents Ingested', `${overview?.documents?.total || 0} files (${overview?.documents?.ready || 0} active/ready)`],
     ['Total Pages & Chunks Indexed', `${overview?.documents?.pages || 0} pages · ${overview?.documents?.chunks || 0} chunks`],
     ['Total RAG Queries Answered', `${overview?.activity?.totalQueries || 0} queries (${overview?.activity?.singleDocQueries || 0} single-doc, ${overview?.activity?.workspaceQueries || 0} workspace)`],
-    ['RAG Token Efficiency & Savings', `${overview?.ragEconomics?.tokenSavingsPercent || 85}% token reduction vs full-document stuffing`],
+    ['RAG Token Efficiency & Savings', `${overview?.ragEconomics?.tokenSavingsPercent ?? 0}% token reduction vs full-document stuffing`],
     ['Est. Tokens Consumed with RAG', `${(overview?.ragEconomics?.estimatedTokensUsed || 0).toLocaleString()} tokens`],
     ['Est. Tokens without RAG (Full Stuffing)', `${(overview?.ragEconomics?.estimatedTokensWithoutRag || 0).toLocaleString()} tokens`],
-    ['Average Retrieval & Synthesis Latency', `${overview?.ragEconomics?.avgLatencyMs || 820} ms`],
+    ['Average Retrieval & Synthesis Latency', `${overview?.ragEconomics?.avgLatencyMs ?? '—'} ms`],
     ['Quiz & Assessment Participation', `${overview?.quizPerformance?.completed || 0} completed (Avg Score: ${overview?.quizPerformance?.averageScorePercent || 0}%)`],
   ];
 

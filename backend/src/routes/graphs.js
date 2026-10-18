@@ -8,7 +8,10 @@ const {
 } = require('../services/graphService');
 const { cleanErrorMessage } = require('../services/geminiClient');
 
+const { uuidParams } = require('../middleware/validate');
+
 const router = express.Router();
+uuidParams(router, 'documentId');
 
 /**
  * Get cached Knowledge Graph for a document

@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, FileText, LogOut, MessageSquare, Trash2, Loader2, CheckCircle2, XCircle, Eye, X, Sun, Moon, Monitor, GraduationCap, Sparkles, BarChart3, Network, RotateCw } from 'lucide-react';
+import { Upload, FileText, LogOut, Trash2, Loader2, CheckCircle2, XCircle, Eye, X, Sun, Moon, Monitor, GraduationCap, NotebookText, BarChart3, Network, RotateCw } from 'lucide-react';
 import client from '../api/client';
+import BrandMark from '../components/BrandMark';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import SummaryModal from '../components/SummaryModal';
@@ -30,25 +31,29 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDocuments();
+  }, []);
+
+  const hasProcessing = documents.some((d) => d.status === 'processing');
+  useEffect(() => {
+    if (!hasProcessing) return;
     const interval = setInterval(fetchDocuments, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [hasProcessing]);
 
   const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const allowedTypes = [
-      'application/pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'text/plain',
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      setError('Unsupported file type. Allowed: PDF, DOCX, XLSX, XLS, PPTX, TXT');
+    // Check the extension: many systems report .txt/.xls/.docx with an empty or generic MIME type
+    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (!['.pdf', '.docx', '.xlsx', '.xls', '.pptx', '.txt'].includes(ext)) {
+      setError(`Can't read ${ext || 'that'} files. Upload a PDF, DOCX, XLSX, XLS, PPTX or TXT.`);
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      setError('That file is over 20 MB. Split it or compress it and try again.');
+      e.target.value = '';
       return;
     }
 
@@ -73,6 +78,8 @@ export default function Dashboard() {
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();
+    const doc = documents.find((d) => d.id === id);
+    if (!window.confirm(`Delete "${doc?.filename}"? Its chats, quizzes and summary go with it.`)) return;
     try {
       await client.delete(`/documents/${id}`);
       setDocuments((docs) => docs.filter((d) => d.id !== id));
@@ -153,14 +160,12 @@ export default function Dashboard() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/40 to-fuchsia-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
         {/* Top nav */}
-        <div className="bg-gradient-to-r from-indigo-600 via-indigo-600 to-fuchsia-600 dark:from-indigo-900 dark:via-indigo-900 dark:to-fuchsia-900 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-lg">
+        <div className="bg-indigo-600 dark:bg-indigo-900 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-lg">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/dashboard')}>
-              <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <MessageSquare size={16} className="text-white" />
-              </div>
+              <BrandMark size={26} className="text-white" detail="#1a4e4b" />
               <span className="font-semibold text-white">DocChat</span>
             </div>
 
@@ -175,7 +180,7 @@ export default function Dashboard() {
                 onClick={() => navigate('/workspaces')}
                 className="px-3 py-1 rounded-lg text-xs font-semibold text-white/80 hover:text-white transition"
               >
-                Workspaces (Cross-Doc)
+                Workspaces
               </button>
               <button
                 onClick={() => navigate('/analytics')}
@@ -219,14 +224,14 @@ export default function Dashboard() {
               onClick={() => setShowLogoutConfirm(true)}
               className="flex items-center gap-1.5 text-sm font-medium text-white/90 hover:text-red-100 hover:bg-red-500/40 px-3 py-2 rounded-full transition"
             >
-              <LogOut size={15} /> Logout
+              <LogOut size={15} /> Log out
             </button>
           </div>
         </div>
 
         <div className="max-w-4xl mx-auto px-6 py-10">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">Your Documents</h1>
-          <p className="text-slate-500 dark:text-slate-400 mb-8">Upload a document and start asking questions about it</p>
+          <h1 className="text-3xl font-semibold text-slate-900 dark:text-white mb-1">Your documents</h1>
+          <p className="text-slate-500 dark:text-slate-400 mb-8">Upload a file, then open it to ask questions. Answers point to the page they came from.</p>
 
           {/* Upload card */}
           <div
@@ -248,7 +253,7 @@ export default function Dashboard() {
             ) : (
               <>
                 <Upload className="mx-auto mb-3 text-slate-400 dark:text-slate-500 group-hover:text-indigo-500 transition" size={32} />
-                <p className="text-slate-700 dark:text-slate-200 font-medium">Click to upload a document</p>
+                <p className="text-slate-700 dark:text-slate-200 font-medium">Choose a file to upload</p>
                 <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">PDF, DOCX, XLSX, PPTX, TXT · Max 20MB</p>
               </>
             )}
@@ -261,7 +266,7 @@ export default function Dashboard() {
           {/* Documents list */}
           <div className="space-y-3">
             {documents.length === 0 && (
-              <p className="text-center text-slate-400 dark:text-slate-500 py-10">No documents yet — upload one to get started.</p>
+              <p className="text-center text-slate-400 dark:text-slate-500 py-10">Nothing here yet. Upload lecture notes, a paper or a slide deck to start asking questions.</p>
             )}
             {documents.map((doc) => (
               <div
@@ -278,7 +283,7 @@ export default function Dashboard() {
                     <p className="font-medium text-slate-900 dark:text-white truncate">{doc.filename}</p>
                     <p className="text-xs text-slate-400 dark:text-slate-500">
                       {doc.status === 'ready'
-                        ? `${doc.page_count} pages · ${doc.chunk_count} chunks`
+                        ? `${doc.page_count} ${doc.page_count === 1 ? 'page' : 'pages'}, ${doc.chunk_count} ${doc.chunk_count === 1 ? 'passage' : 'passages'} indexed`
                         : doc.status === 'failed'
                         ? <span className="text-red-500 dark:text-red-400">{formatDocError(doc.error_message)}</span>
                         : 'Processing...'}
@@ -305,9 +310,9 @@ export default function Dashboard() {
                           setSummaryDoc(doc);
                         }}
                         className="flex items-center gap-1.5 text-xs font-semibold bg-fuchsia-50 hover:bg-fuchsia-100 dark:bg-fuchsia-950/80 dark:hover:bg-fuchsia-900 text-fuchsia-700 dark:text-fuchsia-300 border border-fuchsia-200/60 dark:border-fuchsia-800/80 px-2.5 py-1.5 rounded-lg transition"
-                        title="View AI Executive Summary & Insights"
+                        title="Summary, key points and glossary"
                       >
-                        <Sparkles size={14} />
+                        <NotebookText size={14} />
                         <span className="hidden sm:inline">Summary</span>
                       </button>
                       <button
@@ -327,7 +332,7 @@ export default function Dashboard() {
                           navigate(`/graph/${doc.id}`);
                         }}
                         className="flex items-center gap-1.5 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/80 dark:hover:bg-emerald-900 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/80 px-2.5 py-1.5 rounded-lg transition"
-                        title="Explore AI Knowledge Graph & Concept Map"
+                        title="Concept map"
                       >
                         <Network size={14} />
                         <span className="hidden sm:inline">Graph</span>
@@ -370,7 +375,7 @@ export default function Dashboard() {
                 onClick={() => { logout(); navigate('/login'); }}
                 className="flex-1 py-2.5 rounded-lg font-medium text-white bg-red-600 hover:bg-red-700 transition"
               >
-                OK
+                Log out
               </button>
             </div>
           </div>
@@ -423,7 +428,7 @@ export default function Dashboard() {
                         </span>
                       </div>
                       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
-                        <pre className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300 font-sans leading-relaxed">
+                        <pre className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300 font-serif leading-relaxed">
                           {page.text}
                         </pre>
                       </div>

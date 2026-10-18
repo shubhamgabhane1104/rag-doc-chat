@@ -1,4 +1,4 @@
-const { callGeminiWithFallback } = require('./geminiClient');
+const { callGeminiWithFallback, streamGeminiWithFallback } = require('./geminiClient');
 
 function buildPrompt(question, contextChunks) {
   const contextText = contextChunks
@@ -20,11 +20,15 @@ Answer:`;
 async function generateAnswer(question, contextChunks) {
   const prompt = buildPrompt(question, contextChunks);
 
-  const response = await callGeminiWithFallback({
-    contents: prompt,
-  });
-
+  const response = await callGeminiWithFallback({ contents: prompt }, { label: 'chat answer' });
   return response.text;
 }
 
-module.exports = { generateAnswer, buildPrompt };
+/** Same as generateAnswer, but calls onText with each piece as it arrives. */
+function streamAnswer(question, contextChunks, onText) {
+  return streamGeminiWithFallback({ contents: buildPrompt(question, contextChunks) }, onText, {
+    label: 'chat answer (stream)',
+  });
+}
+
+module.exports = { generateAnswer, streamAnswer, buildPrompt };

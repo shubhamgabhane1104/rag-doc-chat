@@ -1,24 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  FolderKanban,
-  Plus,
-  FileText,
-  Trash2,
-  ArrowRight,
-  Loader2,
-  Sparkles,
-  Layers,
-  MessageSquare,
-  LogOut,
-  Sun,
-  Moon,
-  Monitor,
-  X,
-  FileSearch,
-  BarChart3
-} from 'lucide-react';
+import { FolderKanban, Plus, FileText, Trash2, ArrowRight, Loader2, Layers, LogOut, Sun, Moon, Monitor, X, BarChart3, Check } from 'lucide-react';
 import client from '../api/client';
+import BrandMark from '../components/BrandMark';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -114,17 +98,15 @@ export default function Workspaces() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/40 to-fuchsia-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans">
       {/* Top Nav */}
-      <div className="bg-gradient-to-r from-indigo-600 via-indigo-600 to-fuchsia-600 dark:from-indigo-900 dark:via-indigo-900 dark:to-fuchsia-900 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-lg">
+      <div className="bg-indigo-600 dark:bg-indigo-900 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-lg">
         <div className="flex items-center gap-6">
           <div
             onClick={() => navigate('/dashboard')}
             className="flex items-center gap-2 cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <MessageSquare size={16} className="text-white" />
-            </div>
+            <BrandMark size={26} className="text-white" detail="#1a4e4b" />
             <span className="font-semibold text-white">DocChat</span>
           </div>
 
@@ -139,7 +121,7 @@ export default function Workspaces() {
             <button
               className="px-3 py-1 rounded-lg text-xs font-semibold bg-white text-indigo-700 shadow-sm"
             >
-              Workspaces (Cross-Doc)
+              Workspaces
             </button>
             <button
               onClick={() => navigate('/analytics')}
@@ -192,7 +174,7 @@ export default function Workspaces() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/80 px-2.5 py-0.5 rounded-full">
+              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/80 px-2.5 py-0.5 rounded-full">
                 Module 9 · Multi-Doc RAG
               </span>
             </div>
@@ -206,7 +188,7 @@ export default function Workspaces() {
 
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-700 hover:to-fuchsia-700 text-white font-semibold text-sm px-4 py-2.5 rounded-xl shadow transition shrink-0"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-2.5 rounded-xl shadow transition shrink-0"
           >
             <Plus size={16} />
             <span>New Workspace</span>
@@ -253,7 +235,7 @@ export default function Workspaces() {
                   <div>
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-xs shrink-0">
                           <FolderKanban size={20} />
                         </div>
                         <div>
@@ -358,7 +340,7 @@ export default function Workspaces() {
 
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">
                   Workspace Name *
                 </label>
                 <input
@@ -372,7 +354,7 @@ export default function Workspaces() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">
                   Description (Optional)
                 </label>
                 <textarea
@@ -386,7 +368,7 @@ export default function Workspaces() {
 
               {/* Attach existing documents */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
                   Attach Documents ({selectedDocIds.length} selected)
                 </label>
 

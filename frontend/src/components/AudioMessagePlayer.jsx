@@ -1,5 +1,5 @@
-import React from 'react';
-import { Volume2, VolumeX, Pause, Play, Square, FastForward } from 'lucide-react';
+
+import { Volume2, Pause, Play, Square } from 'lucide-react';
 
 export default function AudioMessagePlayer({
   messageId,

@@ -4,7 +4,10 @@ const { pool } = require('../db/db');
 const { requireAuth } = require('../middleware/auth');
 const { generateDocumentSummary } = require('../services/summaryService');
 
+const { uuidParams } = require('../middleware/validate');
+
 const router = express.Router();
+uuidParams(router, 'documentId');
 
 /**
  * Fetch cached summary for a document

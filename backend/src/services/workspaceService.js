@@ -1,4 +1,4 @@
-const { callGeminiWithFallback } = require('./geminiClient');
+const { callGeminiWithFallback, streamGeminiWithFallback } = require('./geminiClient');
 
 /**
  * Builds unified multi-document prompt
@@ -36,11 +36,16 @@ Synthesized Multi-Document Answer:`;
 async function generateWorkspaceAnswer(question, topChunks, docMap) {
   const prompt = buildMultiDocPrompt(question, topChunks, docMap);
 
-  const response = await callGeminiWithFallback({
-    contents: prompt,
-  });
-
+  const response = await callGeminiWithFallback({ contents: prompt }, { label: 'workspace answer' });
   return response.text;
+}
+
+function streamWorkspaceAnswer(question, topChunks, docMap, onText) {
+  return streamGeminiWithFallback(
+    { contents: buildMultiDocPrompt(question, topChunks, docMap) },
+    onText,
+    { label: 'workspace answer (stream)' }
+  );
 }
 
 /**
@@ -76,15 +81,12 @@ Structure your response with clear Markdown formatting:
 3. **Key Contrasts & Divergences** (Specific points where Document A and Document B differ)
 4. **Summary & Recommendations**`;
 
-  const response = await callGeminiWithFallback({
-    contents: prompt,
-  });
-
+  const response = await callGeminiWithFallback({ contents: prompt }, { label: 'compare documents' });
   return response.text;
 }
 
 module.exports = {
   generateWorkspaceAnswer,
+  streamWorkspaceAnswer,
   compareDocuments,
-  callGeminiWithFallback,
 };

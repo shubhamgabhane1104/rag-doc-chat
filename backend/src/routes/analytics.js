@@ -15,7 +15,7 @@ const router = express.Router();
  */
 router.get('/all', requireAuth, async (req, res) => {
   try {
-    const days = parseInt(req.query.days, 10) || 7;
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 7, 1), 90);
     const [overview, trends, documentAnalytics, health] = await Promise.all([
       getOverviewMetrics(req.userId),
       getActivityTrends(req.userId, days),
@@ -42,7 +42,7 @@ router.get('/all', requireAuth, async (req, res) => {
  */
 router.get('/overview', requireAuth, async (req, res) => {
   try {
-    const days = parseInt(req.query.days, 10) || 7;
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 7, 1), 90);
     const [overview, trends] = await Promise.all([
       getOverviewMetrics(req.userId),
       getActivityTrends(req.userId, days),

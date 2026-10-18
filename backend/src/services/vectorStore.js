@@ -11,17 +11,37 @@ function vectorFilePath(documentId) {
   return path.join(DATA_DIR, `${documentId}.json`);
 }
 
+// Parsing a document's vector file (3072 floats per chunk) on every question
+// was slow for big documents, so keep recently used ones in memory.
+const CACHE_LIMIT = Number(process.env.VECTOR_CACHE_DOCS) || 50;
+const cache = new Map(); // documentId -> entries (Map keeps insertion order for LRU)
+
+function remember(documentId, entries) {
+  cache.delete(documentId);
+  cache.set(documentId, entries);
+  if (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value);
+}
+
 function saveVectors(documentId, entries) {
   fs.writeFileSync(vectorFilePath(documentId), JSON.stringify(entries));
+  remember(documentId, entries);
 }
 
 function loadVectors(documentId) {
+  if (cache.has(documentId)) {
+    const entries = cache.get(documentId);
+    remember(documentId, entries);
+    return entries;
+  }
   const filePath = vectorFilePath(documentId);
   if (!fs.existsSync(filePath)) return [];
-  return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  const entries = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  remember(documentId, entries);
+  return entries;
 }
 
 function deleteVectors(documentId) {
+  cache.delete(documentId);
   const filePath = vectorFilePath(documentId);
   if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 }

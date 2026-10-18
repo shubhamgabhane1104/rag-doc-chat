@@ -1,4 +1,5 @@
 const { callGeminiWithFallback } = require('./geminiClient');
+const { parseJsonSafely, extractArray } = require('./jsonUtils');
 
 /**
  * Samples chunks evenly if the document has many chunks,
@@ -18,30 +19,6 @@ function sampleChunks(chunks, maxChunks = 15) {
   }
 
   return sampled;
-}
-
-/**
- * Clean LLM response to extract valid JSON
- */
-function parseJsonSafely(rawText) {
-  let cleaned = rawText.trim();
-  // Strip ```json ... ``` or ``` ... ``` code blocks
-  if (cleaned.startsWith('```')) {
-    cleaned = cleaned.replace(/^```[a-zA-Z]*\n?/, '');
-    cleaned = cleaned.replace(/\n?```$/, '');
-  }
-  cleaned = cleaned.trim();
-
-  try {
-    return JSON.parse(cleaned);
-  } catch (err) {
-    // If there is surrounding text, try extracting array with regex
-    const match = cleaned.match(/\[\s*\{[\s\S]*\}\s*\]/);
-    if (match) {
-      return JSON.parse(match[0]);
-    }
-    throw new Error(`Failed to parse AI output as JSON: ${err.message}`);
-  }
 }
 
 async function generateMcqQuestions(contextText, count = 5, difficulty = 'medium') {
@@ -71,22 +48,28 @@ Required JSON Structure:
   }
 ]`;
 
-  let response;
-  try {
-    response = await callGeminiWithFallback({
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-      },
-    });
-  } catch (err) {
-    // Fallback without responseMimeType if not supported
-    response = await callGeminiWithFallback({
-      contents: prompt,
-    });
-  }
+  // One fallback chain only: every model in the chain supports JSON mode, so
+  // re-running the whole chain without it just doubled the wait on failures.
+  const response = await callGeminiWithFallback(
+    { contents: prompt, config: { responseMimeType: 'application/json' } },
+    { label: 'mcq quiz' }
+  );
 
-  return parseJsonSafely(response.text);
+  const questions = extractArray(parseJsonSafely(response.text))
+    .filter((q) => q && q.question && Array.isArray(q.options) && q.options.length >= 2)
+    .map((q, i) => {
+      const correct = Number(q.correctAnswer);
+      return {
+        id: i + 1,
+        question: String(q.question),
+        options: q.options.map(String),
+        correctAnswer: Number.isInteger(correct) && correct >= 0 && correct < q.options.length ? correct : 0,
+        explanation: q.explanation || '',
+        pageNumber: Number(q.pageNumber) || 1,
+      };
+    });
+  if (questions.length === 0) throw new Error('The AI did not return any usable questions. Please try again.');
+  return questions;
 }
 
 async function generateVivaQuestions(contextText, count = 5, difficulty = 'medium') {
@@ -114,21 +97,24 @@ Required JSON Structure:
   }
 ]`;
 
-  let response;
-  try {
-    response = await callGeminiWithFallback({
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-      },
-    });
-  } catch (err) {
-    response = await callGeminiWithFallback({
-      contents: prompt,
-    });
-  }
+  // One fallback chain only: every model in the chain supports JSON mode, so
+  // re-running the whole chain without it just doubled the wait on failures.
+  const response = await callGeminiWithFallback(
+    { contents: prompt, config: { responseMimeType: 'application/json' } },
+    { label: 'viva questions' }
+  );
 
-  return parseJsonSafely(response.text);
+  const questions = extractArray(parseJsonSafely(response.text))
+    .filter((q) => q && q.question)
+    .map((q, i) => ({
+      id: i + 1,
+      question: String(q.question),
+      modelAnswer: q.modelAnswer || '',
+      keyPoints: Array.isArray(q.keyPoints) ? q.keyPoints.map(String) : [],
+      pageNumber: Number(q.pageNumber) || 1,
+    }));
+  if (questions.length === 0) throw new Error('The AI did not return any usable questions. Please try again.');
+  return questions;
 }
 
 async function generateQuizFromChunks(chunks, { type = 'mcq', count = 5, difficulty = 'medium' }) {
@@ -151,5 +137,4 @@ async function generateQuizFromChunks(chunks, { type = 'mcq', count = 5, difficu
 module.exports = {
   generateQuizFromChunks,
   sampleChunks,
-  parseJsonSafely,
 };

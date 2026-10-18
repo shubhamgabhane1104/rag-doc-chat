@@ -11,36 +11,77 @@ const { chunkPages } = require('../services/chunkService');
 const { embedTexts } = require('../services/embeddingService');
 const vectorStore = require('../services/vectorStore');
 const { cleanErrorMessage } = require('../services/geminiClient');
+const { uuidParams } = require('../middleware/validate');
 
 const router = express.Router();
+uuidParams(router, 'id');
 
 const UPLOAD_DIR = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
+// Browsers send multipart filenames as latin1; recover the real UTF-8 name.
+function decodeOriginalName(name) {
+  try {
+    return Buffer.from(name, 'latin1').toString('utf8');
+  } catch {
+    return name;
+  }
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => cb(null, `${uuidv4()}-${file.originalname}`),
+  // Never trust the client filename on disk; keep only the extension.
+  filename: (req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname).toLowerCase()}`),
 });
 
-const ALLOWED_MIMES = [
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',       // .xlsx
-  'application/vnd.ms-excel',                                                // .xls
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
-  'text/plain',                                                              // .txt
-];
+const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.xls', '.pptx', '.txt'];
 
 const upload = multer({
   storage,
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (!ALLOWED_MIMES.includes(file.mimetype)) {
-      return cb(new Error('Unsupported file type. Allowed: PDF, DOCX, XLSX, XLS, PPTX, TXT'));
+    // Check the extension, not the MIME type: browsers/OSes often report
+    // .txt, .xls or .docx as application/octet-stream or an empty string.
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      const err = new Error('Unsupported file type. Allowed: PDF, DOCX, XLSX, XLS, PPTX, TXT');
+      err.statusCode = 400;
+      return cb(err);
     }
     cb(null, true);
   },
 });
+
+/**
+ * Chunks overlap by ~200 chars, so naively joining them repeats text.
+ * Find where the next chunk's start already appears at the end of the
+ * previous one and only append the new part.
+ */
+function stitchChunks(texts) {
+  let out = '';
+  for (const text of texts) {
+    if (!out) {
+      out = text;
+      continue;
+    }
+    const tail = out.slice(-400);
+    let overlap = 0;
+    for (let len = Math.min(tail.length, text.length); len >= 20; len--) {
+      if (tail.endsWith(text.slice(0, len))) {
+        overlap = len;
+        break;
+      }
+    }
+    if (!overlap) {
+      // Chunks are trimmed, so the overlap may start mid-word; search for it.
+      const probe = text.slice(0, 40);
+      const idx = tail.lastIndexOf(probe);
+      if (idx !== -1) overlap = tail.length - idx;
+    }
+    out += overlap ? text.slice(overlap) : ` ${text}`;
+  }
+  return out;
+}
 
 async function processDocument(documentId, filePath) {
   try {
@@ -126,15 +167,21 @@ router.post('/upload', requireAuth, upload.single('file'), async (req, res) => {
   }
 
   const documentId = uuidv4();
+  const filename = decodeOriginalName(req.file.originalname);
 
-  await pool.query(
-    'INSERT INTO documents (id, user_id, filename, file_path, status) VALUES ($1, $2, $3, $4, $5)',
-    [documentId, req.userId, req.file.originalname, req.file.path, 'processing']
-  );
+  try {
+    await pool.query(
+      'INSERT INTO documents (id, user_id, filename, file_path, status) VALUES ($1, $2, $3, $4, $5)',
+      [documentId, req.userId, filename, req.file.path, 'processing']
+    );
+  } catch (err) {
+    fs.unlink(req.file.path, () => {});
+    throw err;
+  }
 
   processDocument(documentId, req.file.path); // runs in background, don't await
 
-  res.status(202).json({ id: documentId, filename: req.file.originalname, status: 'processing' });
+  res.status(202).json({ id: documentId, filename, status: 'processing' });
 });
 
 router.get('/', requireAuth, async (req, res) => {
@@ -190,7 +237,7 @@ router.get('/:id/content', requireAuth, async (req, res) => {
     .sort(([a], [b]) => Number(a) - Number(b))
     .map(([pageNumber, texts]) => ({
       pageNumber: Number(pageNumber),
-      text: texts.join(' '),
+      text: stitchChunks(texts),
     }));
 
   res.json({ filename: doc.filename, pages });

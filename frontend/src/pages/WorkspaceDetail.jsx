@@ -1,32 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft,
-  FolderKanban,
-  FileText,
-  Send,
-  Loader2,
-  Sparkles,
-  Layers,
-  Scale,
-  Plus,
-  Trash2,
-  Sun,
-  Moon,
-  Monitor,
-  Check,
-  X,
-  FileDown,
-  Download,
-  AlertCircle,
-  HelpCircle,
-  FileSearch,
-  BookOpen
-} from 'lucide-react';
+import { ArrowLeft, FolderKanban, FileText, Send, Loader2, NotebookText, Layers, Scale, Sun, Moon, Monitor, Check, X, FileDown, AlertCircle } from 'lucide-react';
 import client from '../api/client';
+import { streamPost } from '../api/stream';
 import { useTheme } from '../context/ThemeContext';
-import { exportChatToPdf, exportChatToMarkdown } from '../utils/exportUtils';
+import { exportChatToPdf } from '../utils/exportUtils';
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant';
+import Markdown from '../components/Markdown';
 import VoiceMicButton from '../components/VoiceMicButton';
 import AudioMessagePlayer from '../components/AudioMessagePlayer';
 
@@ -122,27 +102,33 @@ export default function WorkspaceDetail() {
 
     const question = input.trim();
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', content: question }]);
+    // Add the question plus an empty answer that fills in as the stream arrives
+    setMessages((prev) => [...prev, { role: 'user', content: question }, { role: 'assistant', content: '', streaming: true }]);
     setSending(true);
 
+    const updateAnswer = (patch) =>
+      setMessages((prev) => {
+        const next = [...prev];
+        next[next.length - 1] = { ...next[next.length - 1], ...patch };
+        return next;
+      });
+
+    let sources = null;
     try {
-      const res = await client.post(`/workspaces/${workspaceId}/message`, { question });
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: res.data.answer, sources: res.data.sources },
-      ]);
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: err.response?.data?.error || 'Failed to generate cross-document answer.',
+      await streamPost(`/workspaces/${workspaceId}/message/stream`, { question }, {
+        onSources: (s) => {
+          sources = s;
         },
-      ]);
+        onDelta: (_, soFar) => updateAnswer({ content: soFar }),
+        onDone: (answer) => updateAnswer({ content: answer, sources, streaming: false }),
+      });
+    } catch (err) {
+      updateAnswer({ content: err.message || 'Failed to generate an answer.', streaming: false });
     } finally {
       setSending(false);
     }
   };
+
 
   const handleRunComparison = async () => {
     if (!docAId || !docBId || docAId === docBId) {
@@ -195,7 +181,7 @@ export default function WorkspaceDetail() {
   const attachedDocs = workspace?.documents || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/40 to-fuchsia-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans">
       {/* Top Header Navbar */}
       <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
         <div className="flex items-center gap-3 min-w-0">
@@ -221,7 +207,7 @@ export default function WorkspaceDetail() {
                 </span>
               </div>
               <p className="text-xs text-slate-400 dark:text-slate-500 truncate max-w-sm">
-                {workspace?.description || 'Cross-document intelligence & comparison engine'}
+                {workspace?.description || 'Questions here search every file in this workspace'}
               </p>
             </div>
           </div>
@@ -280,8 +266,8 @@ export default function WorkspaceDetail() {
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <Sparkles size={16} />
-              <span>Multi-Document Q&A Chat</span>
+              <NotebookText size={16} />
+              <span>Ask</span>
             </button>
 
             <button
@@ -313,11 +299,11 @@ export default function WorkspaceDetail() {
             {messages.length === 0 && (
               <div className="text-center py-16 space-y-4">
                 <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center mx-auto text-indigo-600 dark:text-indigo-400 shadow-inner">
-                  <Sparkles size={28} />
+                  <NotebookText size={28} />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                    Cross-Document Intelligence Ready
+                    Ask something that spans these files
                   </h3>
                   <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1">
                     Ask questions across all {attachedDocs.length} documents in this workspace. Answers will synthesize facts and cite the exact source files and pages.
@@ -346,7 +332,7 @@ export default function WorkspaceDetail() {
             )}
 
             {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} ${m.role === 'assistant' && !m.content ? 'hidden' : ''}`}>
                 <div
                   className={`max-w-[85%] rounded-2xl px-5 py-4 ${
                     m.role === 'user'
@@ -354,13 +340,21 @@ export default function WorkspaceDetail() {
                       : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-bl-sm shadow-xs'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</p>
+                  {m.role === 'user' ? (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</p>
+                  ) : (
+                    <Markdown
+                    // hide a half-arrived ** marker while streaming
+                    text={m.streaming ? m.content.replace(/\*+$/, '') : m.content}
+                    className={`prose-reading ${m.streaming ? 'streaming-caret' : ''}`}
+                  />
+                  )}
 
                   {/* Read Aloud Voice Button for Assistant Response */}
-                  {m.role === 'assistant' && (
+                  {m.role === 'assistant' && !m.streaming && (
                     <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
                       <AudioMessagePlayer
-                        messageId={m.id || mIdx}
+                        messageId={m.id || i}
                         content={m.content}
                         isSpeaking={voice.isSpeaking}
                         isPaused={voice.isPaused}
@@ -378,8 +372,8 @@ export default function WorkspaceDetail() {
                   {/* Multi-Source Citations */}
                   {m.sources && m.sources.length > 0 && (
                     <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/80 space-y-2">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                        Multi-Document Sources Cited:
+                      <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500">
+                        Sources
                       </p>
                       <div className="grid grid-cols-1 gap-1.5">
                         {m.sources.map((s, sIdx) => (
@@ -410,12 +404,12 @@ export default function WorkspaceDetail() {
               </div>
             ))}
 
-            {sending && (
+            {sending && !messages[messages.length - 1]?.content && (
               <div className="flex justify-start">
                 <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl rounded-bl-sm px-5 py-4 shadow-xs flex items-center gap-3">
                   <Loader2 className="animate-spin text-indigo-500" size={18} />
                   <span className="text-xs text-slate-500 dark:text-slate-400">
-                    Synthesizing answers across {attachedDocs.length} documents...
+                    Searching {attachedDocs.length} documents…
                   </span>
                 </div>
               </div>
@@ -449,7 +443,7 @@ export default function WorkspaceDetail() {
               type="submit"
               disabled={sending || !input.trim() || attachedDocs.length === 0}
               className="bg-indigo-600 hover:bg-indigo-700 text-white p-2.5 rounded-xl disabled:opacity-40 transition shrink-0"
-              title="Send Cross-Document Question"
+              title="Send"
             >
               <Send size={18} />
             </button>
@@ -492,7 +486,7 @@ export default function WorkspaceDetail() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Select Doc A */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">
                       Document A (Reference)
                     </label>
                     <select
@@ -510,7 +504,7 @@ export default function WorkspaceDetail() {
 
                   {/* Select Doc B */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">
                       Document B (Comparison Target)
                     </label>
                     <select
@@ -552,7 +546,7 @@ export default function WorkspaceDetail() {
                   <button
                     onClick={handleRunComparison}
                     disabled={comparing || !docAId || !docBId || docAId === docBId}
-                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-700 hover:to-fuchsia-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl shadow transition disabled:opacity-50"
+                    className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl shadow transition disabled:opacity-50"
                   >
                     {comparing ? (
                       <>
@@ -593,9 +587,7 @@ export default function WorkspaceDetail() {
                 </span>
               </div>
 
-              <div className="prose dark:prose-invert max-w-none text-sm text-slate-800 dark:text-slate-200 whitespace-pre-line leading-relaxed">
-                {comparisonResult.comparison}
-              </div>
+              <Markdown text={comparisonResult.comparison} className="prose-reading text-slate-800 dark:text-slate-200" />
             </div>
           )}
         </div>

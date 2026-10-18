@@ -1,13 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Send, Loader2, FileText, Sun, Moon, Monitor, GraduationCap, Sparkles, Download, ChevronDown, FileDown, Network } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, FileText, Sun, Moon, Monitor, GraduationCap, NotebookText, Download, ChevronDown, FileDown, Network } from 'lucide-react';
 import client from '../api/client';
+import { streamPost } from '../api/stream';
 import { useTheme } from '../context/ThemeContext';
 import SummaryModal from '../components/SummaryModal';
 import { exportChatToPdf, exportChatToMarkdown, exportStudyGuideToPdf } from '../utils/exportUtils';
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant';
 import VoiceMicButton from '../components/VoiceMicButton';
 import AudioMessagePlayer from '../components/AudioMessagePlayer';
+import Markdown from '../components/Markdown';
 
 export default function Chat() {
   const { documentId } = useParams();
@@ -48,29 +50,38 @@ export default function Chat() {
   }, [messages]);
 
   const handleSend = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     if (!input.trim() || sending) return;
 
     const question = input.trim();
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', content: question }]);
+    // Add the question plus an empty answer that fills in as the stream arrives
+    setMessages((prev) => [...prev, { role: 'user', content: question }, { role: 'assistant', content: '', streaming: true }]);
     setSending(true);
 
+    const updateAnswer = (patch) =>
+      setMessages((prev) => {
+        const next = [...prev];
+        next[next.length - 1] = { ...next[next.length - 1], ...patch };
+        return next;
+      });
+
+    let sources = null;
     try {
-      const res = await client.post(`/chats/${documentId}/message`, { question });
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: res.data.answer, sources: res.data.sources },
-      ]);
+      await streamPost(`/chats/${documentId}/message/stream`, { question }, {
+        onSources: (s) => {
+          sources = s;
+        },
+        onDelta: (_, soFar) => updateAnswer({ content: soFar }),
+        onDone: (answer) => updateAnswer({ content: answer, sources, streaming: false }),
+      });
     } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: err.response?.data?.error || 'Something went wrong.' },
-      ]);
+      updateAnswer({ content: err.message || 'Something went wrong.', streaming: false });
     } finally {
       setSending(false);
     }
   };
+
 
   const handleExportStudyGuide = async () => {
     setExportingStudyGuide(true);
@@ -110,7 +121,7 @@ export default function Chat() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/40 to-fuchsia-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
       <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/dashboard')} className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition">
@@ -137,7 +148,7 @@ export default function Chat() {
             className="flex items-center gap-1.5 text-xs font-semibold bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-950/80 dark:hover:bg-fuchsia-900 dark:text-fuchsia-300 border border-fuchsia-200/60 dark:border-fuchsia-800/80 px-2.5 py-1.5 rounded-lg transition"
             title="View AI Document Insights & Summary"
           >
-            <Sparkles size={14} />
+            <NotebookText size={14} />
             <span className="hidden sm:inline">Summary</span>
           </button>
 
@@ -212,7 +223,7 @@ export default function Chat() {
                   disabled={exportingStudyGuide}
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/60 text-slate-800 dark:text-slate-200 transition disabled:opacity-40"
                 >
-                  <Sparkles size={15} className="text-fuchsia-600 dark:text-fuchsia-400 shrink-0" />
+                  <NotebookText size={15} className="text-fuchsia-600 dark:text-fuchsia-400 shrink-0" />
                   <div>
                     <p className="font-semibold">
                       {exportingStudyGuide ? 'Generating Booklet...' : 'Export Complete Study Guide'}
@@ -253,7 +264,7 @@ export default function Chat() {
 
         <div className="space-y-6">
           {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} ${m.role === 'assistant' && !m.content ? 'hidden' : ''}`}>
               <div
                 className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                   m.role === 'user'
@@ -261,10 +272,18 @@ export default function Chat() {
                     : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-bl-sm'
                 }`}
               >
-                <p className="whitespace-pre-wrap text-sm">{m.content}</p>
+                {m.role === 'user' ? (
+                  <p className="whitespace-pre-wrap text-sm">{m.content}</p>
+                ) : (
+                  <Markdown
+                    // hide a half-arrived ** marker while streaming
+                    text={m.streaming ? m.content.replace(/\*+$/, '') : m.content}
+                    className={`prose-reading ${m.streaming ? 'streaming-caret' : ''}`}
+                  />
+                )}
 
                 {/* Voice Read Aloud for Assistant Answers */}
-                {m.role === 'assistant' && (
+                {m.role === 'assistant' && !m.streaming && (
                   <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
                     <AudioMessagePlayer
                       messageId={m.id || i}
@@ -284,10 +303,13 @@ export default function Chat() {
 
                 {m.sources && m.sources.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-1.5">
-                    <p className="text-xs font-medium text-slate-400 dark:text-slate-500">Sources</p>
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">From the document</p>
                     {m.sources.map((s, idx) => (
-                      <div key={idx} className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-lg px-2.5 py-1.5">
-                        <span className="font-medium text-indigo-600 dark:text-indigo-400">Page {s.pageNumber}</span> — {s.snippet}...
+                      <div key={idx} className="flex gap-2.5 text-xs text-slate-600 dark:text-slate-400">
+                        <span className="shrink-0 self-start mt-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-semibold px-1.5 py-0.5">
+                          p. {s.pageNumber}
+                        </span>
+                        <span className="font-serif leading-relaxed line-clamp-2">{s.snippet}…</span>
                       </div>
                     ))}
                   </div>
@@ -295,7 +317,7 @@ export default function Chat() {
               </div>
             </div>
           ))}
-          {sending && (
+          {sending && !messages[messages.length - 1]?.content && (
             <div className="flex justify-start">
               <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl rounded-bl-sm px-4 py-3">
                 <Loader2 className="animate-spin text-slate-400" size={16} />

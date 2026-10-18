@@ -4,7 +4,10 @@ const { pool } = require('../db/db');
 const { requireAuth } = require('../middleware/auth');
 const { generateQuizFromChunks } = require('../services/quizService');
 
+const { uuidParams } = require('../middleware/validate');
+
 const router = express.Router();
+uuidParams(router, 'documentId', 'quizId');
 
 /**
  * Generate a new Quiz or Viva question set for a document

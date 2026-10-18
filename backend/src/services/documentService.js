@@ -80,8 +80,6 @@ function extractTxt(filePath) {
   return [{ pageNumber: 1, text }];
 }
 
-module.exports = { extractTextByPage };
-
 // ── PPTX (PowerPoint) ────────────────────────────────
 async function extractPptx(filePath) {
   const data = fs.readFileSync(filePath);
@@ -105,7 +103,7 @@ async function extractPptx(filePath) {
     const regex = /<a:t[^>]*>(.*?)<\/a:t>/gs;
     let match;
     while ((match = regex.exec(xml)) !== null) {
-      textParts.push(match[1]);
+      textParts.push(decodeXmlEntities(match[1]));
     }
 
     const slideText = textParts.join(' ').trim();
@@ -116,3 +114,16 @@ async function extractPptx(filePath) {
 
   return pages;
 }
+
+function decodeXmlEntities(str) {
+  return str
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&amp;/g, '&');
+}
+
+module.exports = { extractTextByPage };

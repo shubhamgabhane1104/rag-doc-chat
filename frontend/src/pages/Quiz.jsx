@@ -1,31 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Sparkles,
-  Award,
-  HelpCircle,
-  CheckCircle2,
-  XCircle,
-  RotateCcw,
-  ChevronRight,
-  ChevronLeft,
-  Loader2,
-  BookOpen,
-  GraduationCap,
-  History,
-  Trash2,
-  FileText,
-  MessageSquare,
-  Sun,
-  Moon,
-  Monitor,
-  Check,
-  Flame,
-  Info,
-  Download,
-  FileDown
-} from 'lucide-react';
+import { ArrowLeft, NotebookText, Award, HelpCircle, CheckCircle2, XCircle, RotateCcw, ChevronRight, ChevronLeft, Loader2, BookOpen, GraduationCap, History, Trash2, MessageSquare, Sun, Moon, Monitor, Check, Flame, Info, Download, FileDown } from 'lucide-react';
 import client from '../api/client';
 import { useTheme } from '../context/ThemeContext';
 import SummaryModal from '../components/SummaryModal';
@@ -233,7 +208,7 @@ export default function Quiz() {
   const isAllAnswered = questions.length > 0 && questions.every((_, i) => userAnswers[i] !== undefined);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/40 to-fuchsia-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans">
       {/* Top Navbar */}
       <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
         <div className="flex items-center gap-3">
@@ -261,7 +236,7 @@ export default function Quiz() {
                 )}
               </div>
               <p className="text-xs text-slate-400 dark:text-slate-500 hidden sm:block">
-                Auto-generated examination tests directly from document content
+                Practice questions written from this document
               </p>
             </div>
           </div>
@@ -274,7 +249,7 @@ export default function Quiz() {
             className="flex items-center gap-1.5 text-xs font-medium bg-fuchsia-50 hover:bg-fuchsia-100 dark:bg-fuchsia-950 dark:hover:bg-fuchsia-900 text-fuchsia-700 dark:text-fuchsia-300 border border-fuchsia-200/60 dark:border-fuchsia-800/80 px-3 py-1.5 rounded-lg transition"
             title="View AI Document Insights & Summary"
           >
-            <Sparkles size={14} />
+            <NotebookText size={14} />
             <span className="hidden md:inline">Summary</span>
           </button>
 
@@ -415,7 +390,7 @@ export default function Quiz() {
             <button
               onClick={() => handleGenerate(activeTab)}
               disabled={generating}
-              className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-700 hover:to-fuchsia-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-sm hover:shadow transition disabled:opacity-50"
+              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-sm hover:shadow transition disabled:opacity-50"
             >
               {generating ? (
                 <>
@@ -424,7 +399,7 @@ export default function Quiz() {
                 </>
               ) : (
                 <>
-                  <Sparkles size={14} />
+                  <NotebookText size={14} />
                   <span>Generate New Set</span>
                 </>
               )}
@@ -472,7 +447,7 @@ export default function Quiz() {
               onClick={() => handleGenerate(activeTab)}
               className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm px-5 py-2.5 rounded-xl shadow transition"
             >
-              <Sparkles size={16} />
+              <NotebookText size={16} />
               <span>Generate {activeTab === 'mcq' ? 'MCQ Quiz' : 'Viva Prep Set'} Now</span>
             </button>
           </div>
@@ -487,11 +462,11 @@ export default function Quiz() {
             {quizResult ? (
               <div className="space-y-6">
                 {/* Score Banner */}
-                <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-fuchsia-600 text-white rounded-2xl p-6 md:p-8 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                <div className="bg-indigo-600 text-white rounded-2xl p-6 md:p-8 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <Award size={24} className="text-amber-300" />
-                      <span className="text-xs uppercase tracking-wider font-semibold text-indigo-100">
+                      <span className="text-xs font-semibold text-indigo-100">
                         Quiz Completed
                       </span>
                     </div>
@@ -527,7 +502,7 @@ export default function Quiz() {
                       onClick={() => handleGenerate('mcq')}
                       className="flex items-center gap-1.5 bg-white text-indigo-700 hover:bg-indigo-50 px-3.5 py-2.5 rounded-xl font-semibold text-xs md:text-sm shadow transition"
                     >
-                      <Sparkles size={15} />
+                      <NotebookText size={15} />
                       <span>New Set</span>
                     </button>
                   </div>
@@ -799,11 +774,11 @@ export default function Quiz() {
         {!generating && currentQuiz && activeTab === 'viva' && (
           <div className="space-y-4">
             {/* Viva Header Info Card */}
-            <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white rounded-2xl p-6 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="bg-amber-700 text-white rounded-2xl p-6 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <Flame size={20} className="text-amber-200" />
-                  <span className="text-xs uppercase tracking-wider font-bold text-amber-100">
+                  <span className="text-xs font-bold text-amber-100">
                     Oral Examination Simulator
                   </span>
                 </div>
@@ -855,7 +830,7 @@ export default function Quiz() {
 
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
                               Examiner Prompt
                             </span>
                             {item.pageNumber && (
@@ -942,7 +917,7 @@ export default function Quiz() {
                         {/* Critical keywords / technical points */}
                         {item.keyPoints && item.keyPoints.length > 0 && (
                           <div>
-                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide block mb-2">
+                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-2">
                               Critical Keywords to Speak Aloud:
                             </span>
                             <div className="flex flex-wrap gap-1.5">
@@ -1010,7 +985,7 @@ export default function Quiz() {
                     >
                       <div className="flex items-start justify-between gap-2 mb-1.5">
                         <span
-                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                             isMcq
                               ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
                               : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
