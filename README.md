@@ -5,7 +5,7 @@
 DocChat is a full-stack Retrieval-Augmented Generation (RAG) application. Upload a PDF, Word file, PowerPoint, Excel sheet or text file; DocChat splits it into passages, turns each passage into an embedding stored in PostgreSQL (pgvector), and answers your questions using only the passages that match, citing the page each answer came from. On top of that it generates summaries, multiple-choice quizzes, viva (oral exam) questions and a concept map for each document, and can answer questions across several documents at once.
 
 <!-- Add your live link here after deploying -->
-<!-- **Live demo:** https://your-app.vercel.app -->
+**Live demo:** https://rag-doc-chat-alpha.vercel.app
 
 ![Asking a question about a PDF](docs/screenshots/chat.png)
 
