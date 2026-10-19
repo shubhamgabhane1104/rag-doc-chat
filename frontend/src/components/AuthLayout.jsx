@@ -1,10 +1,15 @@
+import { FileUp, MessageSquareQuote, NotebookText, GraduationCap, FolderKanban } from 'lucide-react';
 import BrandMark from './BrandMark';
 
-/**
- * Two-column frame for login / signup. The left side shows what the app
- * actually does — a passage, a question, and an answer that points back to
- * the page it came from — instead of marketing copy.
- */
+// What a new user can actually do in DocChat, shown on the login / signup page
+const FEATURES = [
+  { icon: FileUp, title: 'Upload your files', text: 'PDF, Word, PowerPoint, Excel or text, up to 20 MB.' },
+  { icon: MessageSquareQuote, title: 'Ask in plain English', text: 'Answers come only from your document, with page numbers.' },
+  { icon: NotebookText, title: 'Get a summary', text: 'Key points and a glossary of important terms.' },
+  { icon: GraduationCap, title: 'Practise for exams', text: 'Generate MCQ quizzes and viva questions.' },
+  { icon: FolderKanban, title: 'Search several files at once', text: 'Group documents into a workspace and ask across all of them.' },
+];
+
 export default function AuthLayout({ children }) {
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex items-center justify-center px-4 py-10">
@@ -19,28 +24,19 @@ export default function AuthLayout({ children }) {
             Ask your notes a question. Get the answer and the page it came from.
           </h1>
 
-          {/* A worked example, rendered like a page from the user's own file */}
-          <figure className="mt-auto pt-10">
-            <div className="rounded-lg bg-slate-50 text-slate-700 p-4 font-serif text-[13px] leading-relaxed shadow-lg">
-              <p>
-                The light reactions take place in the thylakoid membranes.{' '}
-                <mark className="bg-[#f2dd8c] text-slate-900 rounded-sm px-0.5">
-                  The Calvin cycle then runs in the stroma
-                </mark>
-                , using ATP and NADPH to fix carbon dioxide.
-              </p>
-              <p className="mt-2 text-right text-[11px] text-slate-400 font-sans">Biology notes, p. 2</p>
-            </div>
-            <figcaption className="mt-4 space-y-2 text-sm">
-              <p className="text-indigo-200">“Where does the Calvin cycle happen?”</p>
-              <p className="text-white">
-                In the stroma of the chloroplast.{' '}
-                <span className="ml-1 inline-block rounded bg-indigo-700 px-1.5 py-0.5 text-[11px] text-indigo-100">
-                  p. 2
+          <ul className="mt-auto pt-10 space-y-4">
+            {FEATURES.map(({ icon: Icon, title, text }) => (
+              <li key={title} className="flex gap-3">
+                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-700 text-indigo-100">
+                  <Icon size={16} />
                 </span>
-              </p>
-            </figcaption>
-          </figure>
+                <div>
+                  <p className="text-sm font-semibold text-white">{title}</p>
+                  <p className="text-[13px] leading-snug text-indigo-200">{text}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
         </aside>
 
         <main className="p-8 sm:p-10 flex flex-col justify-center">
