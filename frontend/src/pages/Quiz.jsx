@@ -203,6 +203,8 @@ export default function Quiz() {
     }));
   };
 
+  // The generate endpoint returns quizType and the history endpoint quiz_type
+  const currentQuizType = currentQuiz?.quiz_type || currentQuiz?.quizType;
   const questions = currentQuiz?.questions || [];
   const currentQ = questions[activeQuestionIndex];
   const isAllAnswered = questions.length > 0 && questions.every((_, i) => userAnswers[i] !== undefined);
@@ -313,11 +315,12 @@ export default function Quiz() {
             <button
               onClick={() => {
                 setActiveTab('mcq');
-                // If there's an MCQ in history and current is viva, switch
-                if (currentQuiz?.quiz_type !== 'mcq') {
+                // Showing a viva set in the MCQ view crashes the page, so clear it first
+                if (currentQuizType !== 'mcq') {
+                  setCurrentQuiz(null);
+                  setQuizResult(null);
                   const pastMcq = quizHistory.find((q) => q.quiz_type === 'mcq');
                   if (pastMcq) loadExistingQuiz(pastMcq.id);
-                  else setCurrentQuiz(null);
                 }
               }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
@@ -333,10 +336,11 @@ export default function Quiz() {
             <button
               onClick={() => {
                 setActiveTab('viva');
-                if (currentQuiz?.quiz_type !== 'viva') {
+                if (currentQuizType !== 'viva') {
+                  setCurrentQuiz(null);
+                  setQuizResult(null);
                   const pastViva = quizHistory.find((q) => q.quiz_type === 'viva');
                   if (pastViva) loadExistingQuiz(pastViva.id);
-                  else setCurrentQuiz(null);
                 }
               }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
@@ -432,7 +436,7 @@ export default function Quiz() {
         )}
 
         {/* Empty state when no quiz loaded and not generating */}
-        {!generating && !currentQuiz && (
+        {!generating && (!currentQuiz || currentQuizType !== activeTab) && (
           <div className="bg-white dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-12 text-center">
             <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center mx-auto mb-4 text-indigo-600 dark:text-indigo-400">
               <BookOpen size={28} />
@@ -456,7 +460,7 @@ export default function Quiz() {
         {/* ─────────────────────────────────────────────────────────────
             MODE A: INTERACTIVE MCQ QUIZ
            ───────────────────────────────────────────────────────────── */}
-        {!generating && currentQuiz && activeTab === 'mcq' && (
+        {!generating && currentQuiz && activeTab === 'mcq' && currentQuizType === 'mcq' && (
           <div className="space-y-6">
             {/* If Quiz is COMPLETED: Show Score Banner and Full Review */}
             {quizResult ? (
@@ -567,7 +571,7 @@ export default function Quiz() {
 
                         {/* Options display with correct/incorrect highlighting */}
                         <div className="grid grid-cols-1 gap-2.5 mb-4">
-                          {q.options.map((opt, optIdx) => {
+                          {(q.options || []).map((opt, optIdx) => {
                             const isChosenOpt = Number(chosen) === optIdx;
                             const isCorrectOpt = Number(q.correctAnswer) === optIdx;
 
@@ -657,12 +661,12 @@ export default function Quiz() {
                 {currentQ && (
                   <div className="space-y-4 py-2">
                     <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white leading-relaxed">
-                      {currentQ.question}
+                      {currentQ?.question}
                     </h2>
 
                     {/* Options list */}
                     <div className="grid grid-cols-1 gap-3 pt-2">
-                      {currentQ.options.map((option, optIdx) => {
+                      {(currentQ?.options || []).map((option, optIdx) => {
                         const isSelected = userAnswers[activeQuestionIndex] === optIdx;
 
                         return (
@@ -771,7 +775,7 @@ export default function Quiz() {
         {/* ─────────────────────────────────────────────────────────────
             MODE B: VIVA VOCE & ORAL DEFENSE PREPARATION
            ───────────────────────────────────────────────────────────── */}
-        {!generating && currentQuiz && activeTab === 'viva' && (
+        {!generating && currentQuiz && activeTab === 'viva' && currentQuizType === 'viva' && (
           <div className="space-y-4">
             {/* Viva Header Info Card */}
             <div className="bg-amber-700 text-white rounded-2xl p-6 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -921,7 +925,7 @@ export default function Quiz() {
                               Critical Keywords to Speak Aloud:
                             </span>
                             <div className="flex flex-wrap gap-1.5">
-                              {item.keyPoints.map((kp, kIdx) => (
+                              {(item.keyPoints || []).map((kp, kIdx) => (
                                 <span
                                   key={kIdx}
                                   className="text-xs bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 px-2.5 py-1 rounded-lg font-medium flex items-center gap-1"

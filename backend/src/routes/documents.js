@@ -12,6 +12,7 @@ const { embedTexts } = require('../services/embeddingService');
 const vectorStore = require('../services/vectorStore');
 const { cleanErrorMessage } = require('../services/geminiClient');
 const { uuidParams } = require('../middleware/validate');
+const { prepareSummaryInBackground } = require('../services/summaryStore');
 
 const router = express.Router();
 uuidParams(router, 'id');
@@ -83,7 +84,7 @@ function stitchChunks(texts) {
   return out;
 }
 
-async function processDocument(documentId, filePath) {
+async function processDocument(documentId, filePath, userId) {
   try {
     const pages = await extractTextByPage(filePath);
     const chunks = chunkPages(pages);
@@ -107,6 +108,9 @@ async function processDocument(documentId, filePath) {
     );
 
     console.log(`Document ${documentId} processed: ${chunks.length} chunks`);
+
+    // Write the summary now, so "Summary" opens instantly later
+    if (userId) prepareSummaryInBackground(documentId, userId, chunks.length);
   } catch (err) {
     console.error(`Processing failed for document ${documentId}:`, err);
     const friendlyError = cleanErrorMessage(err);
@@ -137,7 +141,7 @@ router.post('/:id/retry', requireAuth, async (req, res) => {
       ['processing', doc.id]
     );
 
-    processDocument(doc.id, doc.file_path);
+    processDocument(doc.id, doc.file_path, doc.user_id);
 
     res.json({ message: 'Document reprocessing initiated', id: doc.id, status: 'processing' });
   } catch (err) {
@@ -164,7 +168,7 @@ router.post('/upload', requireAuth, upload.single('file'), async (req, res) => {
     throw err;
   }
 
-  processDocument(documentId, req.file.path); // runs in background, don't await
+  processDocument(documentId, req.file.path, req.userId); // runs in background, don't await
 
   res.status(202).json({ id: documentId, filename, status: 'processing' });
 });

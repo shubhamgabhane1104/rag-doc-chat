@@ -1,8 +1,7 @@
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
 const { pool } = require('../db/db');
 const { requireAuth } = require('../middleware/auth');
-const { generateDocumentSummary } = require('../services/summaryService');
+const { createSummary } = require('../services/summaryStore');
 
 const { uuidParams } = require('../middleware/validate');
 
@@ -113,42 +112,8 @@ router.post('/:documentId', requireAuth, async (req, res) => {
       }
     }
 
-    // Fetch document chunks
-    const chunksResult = await pool.query(
-      'SELECT page_number, chunk_text FROM chunks WHERE document_id = $1 ORDER BY chunk_index ASC',
-      [documentId]
-    );
-
-    if (chunksResult.rows.length === 0) {
-      return res.status(400).json({ error: 'No text chunks available to generate summary.' });
-    }
-
-    // Generate summary with Gemini
-    const result = await generateDocumentSummary(chunksResult.rows);
-
-    const summaryId = uuidv4();
-
-    // Remove older summary for this doc & user, then insert fresh
-    await pool.query(
-      'DELETE FROM document_summaries WHERE document_id = $1 AND user_id = $2',
-      [documentId, req.userId]
-    );
-
-    await pool.query(
-      `INSERT INTO document_summaries 
-       (id, document_id, user_id, executive_summary, key_takeaways, glossary, reading_time, difficulty) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [
-        summaryId,
-        documentId,
-        req.userId,
-        result.executiveSummary,
-        JSON.stringify(result.keyTakeaways || []),
-        JSON.stringify(result.glossary || []),
-        result.readingTimeMinutes || 5,
-        result.difficulty || 'Intermediate',
-      ]
-    );
+    // Generate with Gemini and save (waits for the background job if one is running)
+    const { summaryId, result } = await createSummary(documentId, req.userId);
 
     res.status(201).json({
       cached: false,
@@ -165,7 +130,7 @@ router.post('/:documentId', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('Summary generation error:', err);
-    res.status(500).json({
+    res.status(err.statusCode === 400 ? 400 : 500).json({
       error: err.message || 'Failed to generate summary. Please try again.',
     });
   }

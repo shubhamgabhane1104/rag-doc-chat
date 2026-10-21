@@ -1,6 +1,7 @@
 // Unit tests for DocChat backend functions.  Run with:  npm test
 process.env.GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'test-key';
 process.env.GEMINI_MODELS = 'model-a,model-b';
+process.env.AI_TIMEOUT_MS = '300';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -156,6 +157,20 @@ test('UT24 cleanErrorMessage: raw API errors become readable messages', () => {
   assert.match(gemini.cleanErrorMessage(null), /unexpected error/);
 });
 
+test('UT34 timeout: a model that does not answer is abandoned and the next model answers', async () => {
+  const used = [];
+  gemini.ai.models.generateContent = (req) => {
+    used.push(req.model);
+    if (used.length === 1) return new Promise(() => {}); // never answers
+    return Promise.resolve({ text: 'answer from ' + req.model });
+  };
+  const started = Date.now();
+  const res = await gemini.callGeminiWithFallback({ contents: 'hi' }, { label: 'test' });
+  assert.match(res.text, /^answer from /);
+  assert.equal(used.length, 2);
+  assert.ok(Date.now() - started < 2000);
+});
+
 test('UT25 fallback: if the first model is not found (404) the next model answers', async () => {
   const used = [];
   gemini.ai.models.generateContent = async (req) => {
@@ -198,4 +213,9 @@ test('UT29 streaming: an answer that fails half-way is not restarted on another 
   gemini.ai.models.generateContentStream = async function* () { calls += 1; yield { text: 'Half an ' }; throw new Error('connection reset'); };
   await assert.rejects(() => gemini.streamGeminiWithFallback({ contents: 'q' }, () => {}, { label: 'test' }));
   assert.equal(calls, 1);
+});
+
+test('UT35 timeout: when every model hangs the user gets a clear message', async () => {
+  gemini.ai.models.generateContent = () => new Promise(() => {});
+  await assert.rejects(() => gemini.callGeminiWithFallback({ contents: 'hi' }, { label: 'test' }), /took too long/);
 });

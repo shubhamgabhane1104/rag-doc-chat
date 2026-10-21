@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -12,10 +12,18 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [slow, setSlow] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const justSignedUp = location.state?.justSignedUp;
+
+  // If login takes long, the free server is probably starting up: say so
+  useEffect(() => {
+    if (!loading) return undefined;
+    const t = setTimeout(() => setSlow(true), 4000);
+    return () => { clearTimeout(t); setSlow(false); };
+  }, [loading]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -81,6 +89,12 @@ export default function Login() {
         >
           {loading ? 'Logging in…' : 'Log in'}
         </button>
+
+        {slow && (
+          <p className="text-sm text-slate-600 dark:text-slate-400 text-center">
+            Waking up the server. On the free plan the first login after a break can take up to a minute.
+          </p>
+        )}
 
         <GoogleSignInButton onError={setError} />
       </form>

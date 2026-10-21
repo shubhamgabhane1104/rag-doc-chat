@@ -1,5 +1,5 @@
 
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -12,12 +12,25 @@ import Workspaces from './pages/Workspaces';
 import WorkspaceDetail from './pages/WorkspaceDetail';
 import Analytics from './pages/Analytics';
 import KnowledgeGraph from './pages/KnowledgeGraph';
+import ErrorBoundary from './components/ErrorBoundary';
+import { API_BASE } from './api/client';
+
+// Wake the backend and the database as soon as the site opens. On free hosting
+// both go to sleep when idle; this starts them while the user is still typing.
+fetch(`${API_BASE}/health?db=1`).catch(() => {});
+
+// A new page gets a fresh error boundary, so going back after a crash works again
+function PageBoundary({ children }) {
+  const location = useLocation();
+  return <ErrorBoundary key={location.pathname}>{children}</ErrorBoundary>;
+}
 
 export default function App() {
   return (
     <ThemeProvider>
     <AuthProvider>
       <BrowserRouter>
+        <PageBoundary>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
@@ -79,6 +92,7 @@ export default function App() {
           />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+        </PageBoundary>
       </BrowserRouter>
     </AuthProvider>
     </ThemeProvider>

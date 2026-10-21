@@ -56,6 +56,21 @@ function getAverageLatencyMs() {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// A model that hangs should not keep the user waiting forever: give up after
+// AI_TIMEOUT_MS and try the next model in the list.
+const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS) || 60000;
+function withTimeout(promise, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const e = new Error(`AI request timed out after ${Math.round(ms / 1000)} s`);
+      e.status = 504;
+      reject(e);
+    }, ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 /**
  * Cleanly format API errors so the frontend doesn't receive raw JSON strings
  */
@@ -65,6 +80,9 @@ function cleanErrorMessage(err) {
 
   if (msg.includes('503') || msg.includes('high demand') || msg.includes('UNAVAILABLE')) {
     return 'Google Gemini AI servers are currently experiencing temporary high traffic. Please retry in a few moments.';
+  }
+  if (msg.includes('timed out')) {
+    return 'The AI took too long to respond. Please try again.';
   }
   if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED')) {
     return 'API rate limit reached. Please wait a few seconds and try again.';
@@ -147,7 +165,7 @@ async function withFallback(options, run, { label = 'generate', maxRetriesPerMod
  * generateContent with multi-model fallback and retry on transient errors.
  */
 function callGeminiWithFallback(options, { label } = {}) {
-  return withFallback(options, (request) => ai.models.generateContent(request), { label });
+  return withFallback(options, (request) => withTimeout(ai.models.generateContent(request), AI_TIMEOUT_MS), { label });
 }
 
 /**

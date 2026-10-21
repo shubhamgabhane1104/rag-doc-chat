@@ -82,9 +82,11 @@ router.post('/generate/:documentId', requireAuth, async (req, res) => {
       documentId,
       title,
       quizType,
+      quiz_type: quizType, // same field name as GET /quiz/:id, so the frontend sees one shape
       difficulty: quizDifficulty,
       questions,
       totalQuestions: questions.length,
+      total_questions: questions.length,
       completed: false,
     });
   } catch (err) {

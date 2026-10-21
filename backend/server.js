@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
-const { initDb } = require('./src/db/db');
+const { initDb, pool } = require('./src/db/db');
 const { importLegacyVectorFiles } = require('./src/services/vectorStore');
 const authRoutes = require('./src/routes/auth');
 const documentsRoutes = require('./src/routes/documents');
@@ -29,7 +29,19 @@ const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
 app.use(cors({ origin: allowedOrigins }));
 app.use(express.json({ limit: '1mb' }));
 
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  // /health?db=1 also wakes up the database (Neon pauses it when idle).
+  // The frontend calls this as soon as the site opens, so the server and the
+  // database are already awake when the user logs in.
+  if (req.query.db) {
+    try {
+      const t0 = Date.now();
+      await pool.query('SELECT 1');
+      return res.json({ status: 'ok', db: 'ok', dbMs: Date.now() - t0 });
+    } catch {
+      return res.status(503).json({ status: 'ok', db: 'unavailable' });
+    }
+  }
   res.json({ status: 'ok' });
 });
 
