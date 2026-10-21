@@ -53,15 +53,18 @@ app.use((err, req, res, next) => {
     const msg = err.code === 'LIMIT_FILE_SIZE' ? 'File is too large (max 20 MB).' : err.message;
     return res.status(400).json({ error: msg });
   }
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Malformed JSON body' });
+  }
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Request is too large (max 1 MB).' });
+  }
   if (err.statusCode === 400) {
     return res.status(400).json({ error: err.message });
   }
   // Postgres: invalid UUID in a route param
   if (err.code === '22P02') {
     return res.status(404).json({ error: 'Not found' });
-  }
-  if (err.type === 'entity.parse.failed') {
-    return res.status(400).json({ error: 'Malformed JSON body' });
   }
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Something went wrong on the server.' });

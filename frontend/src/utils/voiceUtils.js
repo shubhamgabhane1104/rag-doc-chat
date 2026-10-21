@@ -15,10 +15,10 @@ export function cleanTextForSpeech(text) {
       .replace(/```[\s\S]*?```/g, ' Code snippet omitted. ')
       // Remove inline code
       .replace(/`([^`]+)`/g, '$1')
-      // Remove document/chunk citation tags like [Source 1: Filename · Page 2] or [Chunk 1 - Page 3]
-      .replace(/\[(?:Source|Chunk|Doc)[^\]]*\]/gi, '')
-      // Remove markdown links [text](url) -> text
+      // Remove markdown links [text](url) -> text (before citations, so [Documentation](url) keeps its text)
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      // Remove citation tags like [Source 1: Filename · Page 2] or [Chunk 1 - Page 3] (a number must follow)
+      .replace(/\[(?:Source|Chunk|Doc)\s*\d+[^\]]*\]/gi, '')
       // Remove URLs
       .replace(/https?:\/\/\S+/g, '')
       // Remove bold/italic markers
